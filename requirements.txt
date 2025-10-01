@@ -1,0 +1,11 @@
+streamlit
+pandas
+scikit-learn
+nltk
+PyPDF2
+requests
+transformers
+torch
+sentencepiece
+accelerate
+tokenizers
