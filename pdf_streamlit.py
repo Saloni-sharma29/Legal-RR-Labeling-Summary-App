@@ -75,6 +75,11 @@ from sklearn.preprocessing import LabelEncoder
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM, pipeline
 import json
+from transformers import pipeline
+
+if "role_summaries" not in st.session_state:
+    st.session_state["role_summaries"] = {}
+
 
 torch.classes.__path__ = [] # add this line to manually set it to empty.
 
@@ -99,9 +104,9 @@ except Exception:
 # --- Abbreviations dictionary (from user's original code) ---
 abbreviations_dict = {
 "(P) Ltd.": "private limited",
-"§": "section",
-"§§": "multiple sections",
-"¶": "paragraph",
+#"§": "section",
+#"§§": "multiple sections",
+#"¶": "paragraph",
 "…………..........................j.": "judge name",
 "………….........................j.": "judge name",
 "a.2d": "atlantic reporter, 2nd series",
@@ -944,7 +949,7 @@ abbreviations_dict = {
 "ors.": 'others',
 "osha": "occupational safety and health administration",
 "p&l": "profit and loss statement",
-"p.": "page",
+#"p.": "page",
 "p.&l.": "profit and loss statement",
 "p.a.": "power of attorney",
 "p.a.c.": "committee on public accounts",
@@ -1106,9 +1111,9 @@ abbreviations_dict = {
 "rsp": "revolutionary socialist party",
 "rti act": "right to information act",
 "rti": "right to information",
-"s": "section",
+#"s": "section",
 "s.ct.": "supreme court reports",
-"s.": "section",
+#"s.": "section",
 "ss.": "sections(s)",
 "s.a.": "second appeal",
 "s.a.d.": "shiromani akali dal",
@@ -1465,12 +1470,63 @@ def extract_text_from_pdf_filelike(filelike):
     except Exception as e:
         st.error(f"Failed to extract PDF text: {e}")
         return ""
+PARTY_MARKERS = [
+    "APPELLANT(S)",
+    "RESPONDENT(S)",
+    "PETITIONER(S)",
+    "CLAIMANT(S)"
+]
+
+def protect_parentheses(text):
+    protected = {}
+    counter = 0
+
+    def replacer(match):
+        nonlocal counter
+        value = match.group(0)
+        # 🚫 Do NOT protect party markers
+        for p in PARTY_MARKERS:
+            if p.lower() in value.lower():
+                return value
+        key = f"__PAREN_{counter}__"
+        protected[key] = value
+        counter += 1
+        return key
+
+    text = re.sub(r'\([^)]*\)', replacer, text)
+    return text, protected
+
+
+def restore_parentheses(text, protected):
+    for key, val in protected.items():
+        text = text.replace(key, val)
+    return text
+
+def expand_abbreviations_safe(text: str, abbrev_dict: dict) -> str:
+    # Protect parenthesized content
+    text, protected = protect_parentheses(text)
+
+    for abbr, full in sorted(abbrev_dict.items(), key=lambda x: len(x[0]), reverse=True):
+        # ❌ Skip single-character abbreviations like §
+        if len(abbr.strip()) <= 1:
+            continue
+
+        pattern = r'(?<!\w)' + re.escape(abbr) + r'(?!\w)'
+        text = re.sub(pattern, full, text, flags=re.IGNORECASE)
+
+    # Restore parentheses
+    text = restore_parentheses(text, protected)
+    return text
+
+    
 
 def preprocess_text(text: str) -> str:
     # A cleaned-up adaptation of the user's preprocessing
     if not text:
         return ""
-    text = re.sub(r"\xa0", " ", text)
+    #text = re.sub(r"\xa0", " ", text)
+    # Normalize
+    text = text.strip()
     lines = [re.sub(r'[^a-zA-Z0-9.,)\-(/?\t ]', '', l) for l in text.splitlines()]
     lines = [re.sub(r'(?<=[^0-9])/(?=[^0-9])', ' ', l) for l in lines]
     lines = [re.sub(r"\t+", " ", l) for l in lines]
@@ -1483,11 +1539,35 @@ def preprocess_text(text: str) -> str:
     lines = [l for l in lines if not re.search(r"Indian Kanoon", l, re.I)]
 
     text = "\n".join(lines)
-    text = re.sub(r"[()\[\]\"]", " ", text)
+    #text = re.sub(r"[()\[\]\"]", " ", text)
     text = re.sub(r" no\.", " number", text)
     text = re.sub(r" nos\.", " numbers", text)
     text = re.sub(r" co\.", " company", text)
     text = re.sub(r" ltd\.", " limited", text)
+    text = re.sub(r'\bS\.\s*(\d+)', r'Section \1', text)
+    text = re.sub(r'\bs\.\s*(\d+)', r'Section \1', text)
+    text = re.sub(r'\bSec\.\s*(\d+)', r'Section \1', text)
+    text = re.sub(r'\bsec\.\s*(\d+)', r'Section \1', text)
+
+    # Protect names like "Abhay S. Oka"
+    text = re.sub(
+        r'([A-Z][a-z]+)\s+S\.\s+([A-Z][a-z]+)',
+        r'\1 __MID__ \2',
+        text
+    )
+
+    # Correct legal expansion
+    text = re.sub(r'\bS\.\s*(\d+)', r'Section \1', text)
+
+    # Normalize party labels
+    text = re.sub(r'APPELLANT\(S\)', 'APPELLANTS', text, flags=re.I)
+    text = re.sub(r'RESPONDENT\(S\)', 'RESPONDENTS', text, flags=re.I)
+
+    # Restore names
+    text = text.replace('__MID__', 'S.')
+
+   
+
 
     # Ignore before JUDGMENT or ORDER
     #lines = text.splitlines()
@@ -1524,33 +1604,45 @@ def preprocess_text(text: str) -> str:
     text = fix_broken_lines(text)
 
     # Now tokenize into sentences
-    sentences = sent_tokenize(text)
-    sentences = [s.strip() for s in sentences if s.strip()]
-    sentences = [s if s.endswith('.') else s + '.' for s in sentences]
+    sentences = []
+    for s in sent_tokenize(text):
+        s = s.strip()
+        if len(s.split()) < 4:
+            continue
+        if re.fullmatch(r'[\d.\-()]+', s):
+            continue
+        if s.lower() in {"number", "j.", "j"}:
+            continue
+        sentences.append(s if s.endswith('.') else s + '.')
+
     return "\n".join(sentences)
 
 
 #***********************
 
-def find_abbreviations(text: str, abbrev_dict: dict):
-    """
-    Finds abbreviations present in the given text based on the provided abbreviation dictionary.
-
-    Parameters:
-        text (str): The input text to search for abbreviations.
-        abbrev_dict (dict): A dictionary mapping abbreviations to their full forms.
-
-    Returns:
-        dict: A dictionary of matched abbreviations and their corresponding full forms found in the text.
-    """
-    t = text.lower()
-    matched = {}
-    for abbr, full in abbrev_dict.items():
-        # Match abbreviation as a standalone token, allowing for non-word characters
+def find_abbreviations(text, abbreviations_dict):
+    found = set()
+    for abbr in abbreviations_dict.keys():
         pattern = r'(?<!\w)' + re.escape(abbr.lower()) + r'(?!\w)'
-        if re.search(pattern, t):
-            matched[abbr] = full
-    return matched
+        if re.search(pattern, text.lower()):
+            found.add(abbr)
+    return sorted(found)
+
+
+def extract_preamble_block(text: str) -> str:
+    """
+    Extract everything before 'JUDGMENT' or 'ORDER'
+    """
+    lines = text.splitlines()
+    preamble_lines = []
+
+    for line in lines:
+        if re.search(r'^\s*(judgment|order|j u d g m e n t|o r d e r)\s*$', line, re.I):
+            break
+        preamble_lines.append(line)
+
+    return "\n".join(preamble_lines).strip()
+
 
 # --- Model loading (cached) ---
 
@@ -1640,7 +1732,14 @@ with col1:
 # Preprocess
 preprocess_button = st.button("Preprocess text")
 if preprocess_button:
-    cleaned_text = preprocess_text(raw_text.lower())
+    cleaned_text = preprocess_text(raw_text)
+    cleaned_text = expand_abbreviations_safe(cleaned_text, abbreviations_dict)
+    # Only remove square brackets and quotes — NOT parentheses
+    cleaned_text = re.sub(r"[\[\]\"]", " ", cleaned_text)
+
+    cleaned_text = cleaned_text.strip()
+
+
     st.session_state['cleaned_text'] = cleaned_text
 else:
     cleaned_text = st.session_state.get('cleaned_text', '')
@@ -1649,17 +1748,16 @@ with col2:
     st.subheader("Preprocessed text")
     st.text_area("Preprocessed", value=cleaned_text, height=300)
 
-# Abbreviations
+found_abbreviations = find_abbreviations(raw_text, abbreviations_dict)
+# Abbreviations 
 if st.button("Show abbreviations found"):
-    if not cleaned_text:
-        st.warning("Please preprocess the text first")
+    if found_abbreviations:
+        st.write("Abbreviations detected in judgment:")
+        for abbr in found_abbreviations:
+            st.write(f"• {abbr} → {abbreviations_dict.get(abbr, 'Unknown expansion')}")
     else:
-        matches = find_abbreviations(cleaned_text, abbreviations_dict)
-        if matches:
-            for k, v in matches.items():
-                st.markdown(f"**{k}**: {v}")
-        else:
-            st.info("No abbreviations found")
+        st.write("No abbreviations detected.")
+
 
 # Label selection
 st.sidebar.subheader("Select labels to include")
@@ -1690,18 +1788,39 @@ else:
 
 # Run labeling & summarization
 if st.button("Label & Summarize"):
+    st.session_state["role_summaries"] = {}
     if not cleaned_text:
         st.warning("Preprocess text first")
     elif not models_loaded:
         st.warning("Load models from the sidebar first (button 'Load models')")
     else:
-        sentences = [s for s in cleaned_text.splitlines() if s.strip()]
+        # 🔹 Extract PREAMBLE from RAW TEXT (not cleaned text)
+        preamble_text = extract_preamble_block(raw_text)
+
+        # 🔹 Store PREAMBLE directly (NO ML)
+        st.session_state["role_summaries"]["PREAMBLE"] = preamble_text
+
+        # 🔹 Remove PREAMBLE from body before ML
+        body_text = raw_text.replace(preamble_text, "").strip()
+
+        # 🔹 Preprocess only BODY
+        cleaned_body = preprocess_text(body_text)
+        cleaned_body = expand_abbreviations_safe(cleaned_body, abbreviations_dict)
+        cleaned_body = re.sub(r"[\[\]\"]", " ", cleaned_body)
+
+        sentences = [s.strip() for s in cleaned_body.splitlines() if len(s.split()) > 3]
+
+
+
+
         if not sentences:
             st.warning("No sentences found after preprocessing")
         else:
             prog = st.progress(0)
             with st.spinner('Predicting labels...'):
                 predicted = predict_labels_batch(sentences, tokenizer_label, model_label, label_encoder, batch_size=16)
+                
+
             prog.progress(50)
 
             # Collect sentences by label and filter by selected labels
@@ -1767,12 +1886,62 @@ if st.button("Label & Summarize"):
                         )
 
                     summary_text = summarizer.tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+                    st.session_state["role_summaries"][lab] = summary_text
+
                     st.markdown(f"**Summary for {lab}**: {summary_text}")
                 except Exception as e:
                     st.error(f"Summarization failed for {lab}: {e}")
 
             prog.progress(100)
             st.success('Done')
+
+
+
+def generate_overall_summary(role_summaries: dict) -> str:
+    ORDER = [
+        ("PREAMBLE", "Case Background"),
+        ("FAC", "Facts of the Case"),
+        ("RLC", "Ruling by Lower Court"),
+        ("ISSUE", "Issues Before the Court"),
+        ("ARG_PETITIONER", "Arguments by the Petitioner"),
+        ("ARG_RESPONDENT", "Arguments by the Respondent"),
+        ("ANALYSIS", "Court’s Analysis"),
+        ("STA", "Statutory Provisions Discussed"),
+        ("PRE_RELIED", "Precedents Relied Upon"),
+        ("PRE_NOT_RELIED", "Precedents Not Relied Upon"),
+        ("RATIO", "Ratio Decidendi"),
+        ("RPC", "Final Decision of the Court"),
+    ]
+
+    summary_parts = []
+
+    for role, heading in ORDER:
+        content = role_summaries.get(role, "").strip()
+        if content:
+            paragraph = (
+                f"{heading}: {content}"
+            )
+            summary_parts.append(paragraph)
+
+    return "\n\n".join(summary_parts)
+
+st.markdown("---")
+st.subheader("Overall Judgment Summary")
+
+if st.button("Generate Overall Summary"):
+    role_summaries = st.session_state.get("role_summaries", {})
+
+    if not role_summaries:
+        st.warning("Please generate rhetorical summaries first.")
+    else:
+        overall_summary = generate_overall_summary(role_summaries)
+        st.text_area(
+            "Overall Summary",
+            value=overall_summary,
+            height=400
+        )
+        st.success('Done')
+
 
 st.markdown("---")
 #st.caption("Built from the user's Tkinter app — adapted for Streamlit. Models can be large; running locally with a GPU is recommended.")
