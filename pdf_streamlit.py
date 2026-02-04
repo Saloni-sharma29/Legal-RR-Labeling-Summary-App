@@ -1410,35 +1410,13 @@ abbreviations_dict = {
 "you're": "you are",
 "you've": "you have"
 }
-
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub.file_download")
 HF_TOKEN = "hf_xxxxxxxxxxxxxxxxxxxxx"
-
-# Safely obtain a Hugging Face token. Accessing `st.secrets` raises
-# FileNotFoundError when no secrets.toml exists, so catch that and
-# fall back to environment variables or the embedded default.
-hf_token = None
-try:
-    hf_token = st.secrets.get("HF_TOKEN")
-except FileNotFoundError:
-    hf_token = None
-
-# Fallback to environment variable or the default placeholder
-if not hf_token:
-    hf_token = os.environ.get("HF_TOKEN", HF_TOKEN)
-
-if hf_token:
-    os.environ["HF_TOKEN"] = hf_token
-    # Do not attempt login at import time — defer login until models are loaded
-    try:
-        # ensure token is available in the environment for later use
-        os.environ["HF_TOKEN"] = hf_token
-    except Exception:
-        pass
-else:
-    try:
-        st.warning("No HF_TOKEN found. Some models may require authentication.")
-    except Exception:
-        pass
+# NOTE: Do not attempt any Hugging Face login at import time. The app
+# will perform `login()` only when the user explicitly provides a token
+# via the sidebar and clicks 'Load models'. This prevents automatic
+# connections using environment variables.
 
 # --- Utility functions ---
 
@@ -1644,9 +1622,37 @@ def load_labeling_model(repo_id: str = "engineersaloni159/LegalRo-BERt_for_rheto
 def load_summarizer_model(repo_id: str = "facebook/bart-large-cnn"):
     tok = AutoTokenizer.from_pretrained(repo_id)
     model = AutoModelForSeq2SeqLM.from_pretrained(repo_id)
-    # Use a pipeline wrapper for convenience
-    summarizer = pipeline("summarization", model=model, tokenizer=tok, device=0 if torch.cuda.is_available() else -1)
-    return summarizer
+    # Try to use the transformers pipeline; on some environments the
+    # 'summarization' task may not be registered and will raise KeyError.
+    # Provide a lightweight fallback that uses model.generate directly.
+    try:
+        summarizer = pipeline("summarization", model=model, tokenizer=tok, device=0 if torch.cuda.is_available() else -1)
+        return summarizer
+    except KeyError:
+        # Fallback summarizer
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        model.to(device)
+
+        def _summarizer(texts, max_length=150, min_length=30, do_sample=False, **kwargs):
+            single = False
+            if isinstance(texts, str):
+                texts = [texts]
+                single = True
+
+            results = []
+            for t in texts:
+                # Tokenize with truncation to a reasonable max input length
+                inputs = tok(t, return_tensors='pt', truncation=True, max_length=1024).to(device)
+                try:
+                    gen = model.generate(**inputs, max_length=max_length, min_length=min_length, do_sample=do_sample)
+                    decoded = tok.decode(gen[0], skip_special_tokens=True, clean_up_tokenization_spaces=True)
+                except Exception as e:
+                    decoded = f"[generation failed: {e}]"
+                results.append({"summary_text": decoded})
+
+            return results[0] if single else results
+
+        return _summarizer
 
 @st.cache_data(show_spinner=False)
 def load_label_mapping_from_json(url: str):
@@ -1700,8 +1706,11 @@ st.sidebar.header("Settings")
 # Allow user to enter HF token (password field) — used for model downloads/auth
 hf_token_input = st.sidebar.text_input("Hugging Face token (optional)", type="password")
 if hf_token_input:
-    os.environ["HF_TOKEN"] = hf_token_input
-    st.sidebar.success("HF token set for this session")
+    st.session_state['hf_token_ui'] = hf_token_input
+    st.sidebar.success("HF token set for this session (used only when loading models)")
+else:
+    # ensure key exists but is empty when user hasn't provided a token
+    st.session_state.setdefault('hf_token_ui', None)
 
 json_url = st.sidebar.text_input("Label mapping JSON URL", value="https://storage.googleapis.com/indianlegalbert/OPEN_SOURCED_FILES/Rhetorical_Role_Benchmark/Data/train.json")
 label_repo = st.sidebar.text_input("Labeling model repo", value="engineersaloni159/LegalRo-BERt_for_rhetorical_role_labeling")
@@ -1770,11 +1779,13 @@ else:
 load_models_btn = st.sidebar.button("Load models")
 models_loaded = False
 if load_models_btn:
-    # Attempt to login to Hugging Face if token present
-    hf_env = os.environ.get("HF_TOKEN")
-    if hf_env:
+    # Only attempt Hugging Face login if the user explicitly provided
+    # a token via the sidebar. Do NOT use environment variables.
+    hf_ui = st.session_state.get('hf_token_ui')
+    if hf_ui:
         try:
-            login(token=hf_env)
+            login(token=hf_ui)
+            st.sidebar.info("Logged into Hugging Face using sidebar token")
         except Exception as e:
             st.sidebar.warning(f"Hugging Face login failed: {e}")
 
@@ -1787,11 +1798,11 @@ if load_models_btn:
 else:
     # try load lazily if present in cache
     try:
-        # Attempt login if token available in environment (for cached loads)
-        hf_env = os.environ.get("HF_TOKEN")
-        if hf_env:
+        # Only login if user explicitly provided a UI token
+        hf_ui = st.session_state.get('hf_token_ui')
+        if hf_ui:
             try:
-                login(token=hf_env)
+                login(token=hf_ui)
             except Exception as e:
                 st.sidebar.warning(f"Hugging Face login failed: {e}")
 
