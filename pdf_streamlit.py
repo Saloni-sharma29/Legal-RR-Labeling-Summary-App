@@ -18,57 +18,10 @@ This file bundles the preprocessing, abbreviation search, model loading (cached)
 labeling and summarization UI in Streamlit.
 """
 
-from urllib import response
-import streamlit as _st_mod
-
-# Robust wrapper around the streamlit module that forwards attributes to the
-# real module but provides safe fallbacks for missing caching APIs. This is
-# necessary because some older Streamlit versions (e.g. 1.7) don't expose
-# `cache_resource` or `cache_data`, and assigning attributes directly to the
-# module can be unreliable across different import/runtime contexts.
-class _StreamlitProxy:
-    def __init__(self, mod):
-        object.__setattr__(self, '_mod', mod)
-
-    def __getattr__(self, name):
-        mod = object.__getattribute__(self, '_mod')
-        # If attribute exists on real module, return it
-        if hasattr(mod, name):
-            return getattr(mod, name)
-        # Provide sensible fallbacks for newer APIs
-        if name == 'cache_resource':
-            if hasattr(mod, 'experimental_singleton'):
-                return getattr(mod, 'experimental_singleton')
-            if hasattr(mod, 'cache'):
-                return getattr(mod, 'cache')
-            # no-op decorator
-            def _noop(*a, **k):
-                def _d(f):
-                    return f
-                return _d
-            return _noop
-        if name == 'cache_data':
-            if hasattr(mod, 'cache'):
-                return getattr(mod, 'cache')
-            def _noop(*a, **k):
-                def _d(f):
-                    return f
-                return _d
-            return _noop
-        # Default: raise AttributeError like normal module access
-        raise AttributeError(f"module 'streamlit' has no attribute '{name}'")
-
-    def __setattr__(self, name, value):
-        # Forward assignments to the underlying module
-        mod = object.__getattribute__(self, '_mod')
-        setattr(mod, name, value)
-
-# Expose the proxy as `st` for the rest of the file
-st = _StreamlitProxy(_st_mod)
+import streamlit as st
 import PyPDF2
 import re
 import nltk
-from nltk.tokenize import sent_tokenize
 import requests
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
@@ -81,7 +34,7 @@ if "role_summaries" not in st.session_state:
     st.session_state["role_summaries"] = {}
 
 
-torch.classes.__path__ = [] # add this line to manually set it to empty.
+#torch.classes.__path__ = [] # add this line to manually set it to empty.
 
 
 # --- NLTK setup ---
@@ -1527,7 +1480,11 @@ def preprocess_text(text: str) -> str:
     #text = re.sub(r"\xa0", " ", text)
     # Normalize
     text = text.strip()
-    lines = [re.sub(r'[^a-zA-Z0-9.,)\-(/?\t ]', '', l) for l in text.splitlines()]
+    #lines = [re.sub(r'[^a-zA-Z0-9.,)\-(/?\t ]', '', l) for l in text.splitlines()] remove the legal structure of document
+    # KEEP legal punctuation
+    lines = [re.sub(r'[^\w\s\.,:\-()/]', '', l)
+    for l in text.splitlines()  
+    ]
     lines = [re.sub(r'(?<=[^0-9])/(?=[^0-9])', ' ', l) for l in lines]
     lines = [re.sub(r"\t+", " ", l) for l in lines]
     lines = [re.sub(r" +", " ", l) for l in lines]
@@ -1631,7 +1588,7 @@ def find_abbreviations(text, abbreviations_dict):
 
 def extract_preamble_block(text: str) -> str:
     """
-    Extract everything before 'JUDGMENT' or 'ORDER'
+    Extracts preamble as everything before 'JUDGMENT' or 'ORDER'
     """
     lines = text.splitlines()
     preamble_lines = []
@@ -1678,7 +1635,7 @@ def load_label_mapping_from_json(url: str):
     df = pd.DataFrame(rows)
     le = LabelEncoder()
     df['label'] = df['label'].astype(str)
-    df['encoded'] = le.fit_transform(df['label'])
+    df['encoded'] = le.fit_transform(df['label'].values)  # type: ignore
     return le, df
 
 # --- Inference helpers ---
@@ -1697,6 +1654,8 @@ def predict_labels_batch(sentences, tokenizer, model, label_encoder, batch_size=
             decoded = label_encoder.inverse_transform(preds)
             labels.extend(decoded)
     return labels
+
+
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="Legal Rhetorical Role Labeling", layout='wide')
@@ -1786,6 +1745,9 @@ else:
     except Exception:
         models_loaded = False
 
+#preamble_text = extract_preamble_block(raw_text)
+#remaining_text = raw_text.replace(preamble_text, "")
+
 # Run labeling & summarization
 if st.button("Label & Summarize"):
     st.session_state["role_summaries"] = {}
@@ -1794,6 +1756,7 @@ if st.button("Label & Summarize"):
     elif not models_loaded:
         st.warning("Load models from the sidebar first (button 'Load models')")
     else:
+        sentences = [s.strip() for s in cleaned_text.splitlines() if len(s.split()) > 3]
         # 🔹 Extract PREAMBLE from RAW TEXT (not cleaned text)
         preamble_text = extract_preamble_block(raw_text)
 
@@ -1811,15 +1774,13 @@ if st.button("Label & Summarize"):
         sentences = [s.strip() for s in cleaned_body.splitlines() if len(s.split()) > 3]
 
 
-
-
         if not sentences:
             st.warning("No sentences found after preprocessing")
         else:
             prog = st.progress(0)
             with st.spinner('Predicting labels...'):
                 predicted = predict_labels_batch(sentences, tokenizer_label, model_label, label_encoder, batch_size=16)
-                
+            
 
             prog.progress(50)
 
@@ -1866,28 +1827,17 @@ if st.button("Label & Summarize"):
                     continue
                 # Summarize (beware of long inputs) Doing the Recursive summarization for the long inputs
                 try:
-                # Truncate input to model max (BART = 1024 tokens)
-                    inputs = summarizer.tokenizer(
-                        long_text,
-                        return_tensors="pt",
-                        truncation=True,
-                        max_length=1024
-                    )
-                    input_ids = inputs["input_ids"].to(summarizer.model.device)
-                    attention_mask = inputs["attention_mask"].to(summarizer.model.device)
-
-                    summary_ids = summarizer.model.generate(
-                        input_ids=input_ids,
-                        attention_mask=attention_mask,
-                        max_length=150,
-                        min_length=30,
-                        num_beams=4,
-                        early_stopping=True
-                        )
-
-                    summary_text = summarizer.tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+                    # Use pipeline for summarization directly
+                    summary_result = summarizer(long_text, max_length=150, min_length=30, do_sample=False)  # type: ignore
+                    # Handle both list and dict return types from pipeline
+                    if isinstance(summary_result, list) and len(summary_result) > 0:
+                        summary_text = summary_result[0].get("summary_text", "")  # type: ignore
+                    elif isinstance(summary_result, dict):
+                        summary_text = summary_result.get("summary_text", "")  # type: ignore
+                    else:
+                        summary_text = str(summary_result)
+                    
                     st.session_state["role_summaries"][lab] = summary_text
-
                     st.markdown(f"**Summary for {lab}**: {summary_text}")
                 except Exception as e:
                     st.error(f"Summarization failed for {lab}: {e}")
