@@ -18,6 +18,7 @@ This file bundles the preprocessing, abbreviation search, model loading (cached)
 labeling and summarization UI in Streamlit.
 """
 
+import os
 import streamlit as st
 import PyPDF2
 import re
@@ -29,9 +30,10 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM, pipeline
 import json
 from transformers import pipeline
+from huggingface_hub import login
 
-if "role_summaries" not in st.session_state:
-    st.session_state["role_summaries"] = {}
+# Page config must be the first Streamlit command
+st.set_page_config(page_title="Legal Rhetorical Role Labeling", layout='wide')
 
 
 #torch.classes.__path__ = [] # add this line to manually set it to empty.
@@ -1409,6 +1411,35 @@ abbreviations_dict = {
 "you've": "you have"
 }
 
+HF_TOKEN = "hf_xxxxxxxxxxxxxxxxxxxxx"
+
+# Safely obtain a Hugging Face token. Accessing `st.secrets` raises
+# FileNotFoundError when no secrets.toml exists, so catch that and
+# fall back to environment variables or the embedded default.
+hf_token = None
+try:
+    hf_token = st.secrets.get("HF_TOKEN")
+except FileNotFoundError:
+    hf_token = None
+
+# Fallback to environment variable or the default placeholder
+if not hf_token:
+    hf_token = os.environ.get("HF_TOKEN", HF_TOKEN)
+
+if hf_token:
+    os.environ["HF_TOKEN"] = hf_token
+    # Do not attempt login at import time — defer login until models are loaded
+    try:
+        # ensure token is available in the environment for later use
+        os.environ["HF_TOKEN"] = hf_token
+    except Exception:
+        pass
+else:
+    try:
+        st.warning("No HF_TOKEN found. Some models may require authentication.")
+    except Exception:
+        pass
+
 # --- Utility functions ---
 
 def extract_text_from_pdf_filelike(filelike):
@@ -1658,11 +1689,20 @@ def predict_labels_batch(sentences, tokenizer, model, label_encoder, batch_size=
 
 
 # --- Streamlit UI ---
-st.set_page_config(page_title="Legal Rhetorical Role Labeling", layout='wide')
 st.title("Legal Rhetorical Role Labeling & Summarization")
+
+# Ensure session state key exists
+if "role_summaries" not in st.session_state:
+    st.session_state["role_summaries"] = {}
 
 # Sidebar
 st.sidebar.header("Settings")
+# Allow user to enter HF token (password field) — used for model downloads/auth
+hf_token_input = st.sidebar.text_input("Hugging Face token (optional)", type="password")
+if hf_token_input:
+    os.environ["HF_TOKEN"] = hf_token_input
+    st.sidebar.success("HF token set for this session")
+
 json_url = st.sidebar.text_input("Label mapping JSON URL", value="https://storage.googleapis.com/indianlegalbert/OPEN_SOURCED_FILES/Rhetorical_Role_Benchmark/Data/train.json")
 label_repo = st.sidebar.text_input("Labeling model repo", value="engineersaloni159/LegalRo-BERt_for_rhetorical_role_labeling")
 summarizer_repo = st.sidebar.text_input("Summarizer model repo", value="facebook/bart-large-cnn")
@@ -1730,6 +1770,14 @@ else:
 load_models_btn = st.sidebar.button("Load models")
 models_loaded = False
 if load_models_btn:
+    # Attempt to login to Hugging Face if token present
+    hf_env = os.environ.get("HF_TOKEN")
+    if hf_env:
+        try:
+            login(token=hf_env)
+        except Exception as e:
+            st.sidebar.warning(f"Hugging Face login failed: {e}")
+
     with st.spinner('Loading labeling model... this may take a while'):
         tokenizer_label, model_label = load_labeling_model(label_repo)
     with st.spinner('Loading summarizer...'):
@@ -1739,6 +1787,14 @@ if load_models_btn:
 else:
     # try load lazily if present in cache
     try:
+        # Attempt login if token available in environment (for cached loads)
+        hf_env = os.environ.get("HF_TOKEN")
+        if hf_env:
+            try:
+                login(token=hf_env)
+            except Exception as e:
+                st.sidebar.warning(f"Hugging Face login failed: {e}")
+
         tokenizer_label, model_label = load_labeling_model(label_repo)
         summarizer = load_summarizer_model(summarizer_repo)
         models_loaded = True
