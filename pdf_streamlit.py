@@ -1812,7 +1812,7 @@ else:
     except Exception:
         models_loaded = False
 
-#preamble_text = extract_preamble_block(raw_text)
+preamble_text = extract_preamble_block(raw_text)
 #remaining_text = raw_text.replace(preamble_text, "")
 
 # Run labeling & summarization
@@ -1825,7 +1825,7 @@ if st.button("Label & Summarize"):
     else:
         sentences = [s.strip() for s in cleaned_text.splitlines() if len(s.split()) > 3]
         # 🔹 Extract PREAMBLE from RAW TEXT (not cleaned text)
-        preamble_text = extract_preamble_block(raw_text)
+        #preamble_text = extract_preamble_block(raw_text)
 
         # 🔹 Store PREAMBLE directly (NO ML)
         st.session_state["role_summaries"]["PREAMBLE"] = preamble_text
@@ -1886,11 +1886,10 @@ if st.button("Label & Summarize"):
                     #st.markdown(f"<div style='color:{color}; padding:4px'>{s}</div>", unsafe_allow_html=True) #without bullet
                     st.markdown(f"<div style='color:{color};'>• {s}</div>", unsafe_allow_html=True) #with bullete   
             prog.progress(75)
-            st.subheader("Summaries by label")
+            # Generate summaries but don't display them to user (used only in overall summary)
             for lab, sents in grouped.items():
                 long_text = ' '.join(sents)
                 if len(long_text.split()) < 20:
-                    st.info(f"Not enough content to summarize for {lab}")
                     continue
                 # Summarize (beware of long inputs) Doing the Recursive summarization for the long inputs
                 try:
@@ -1905,9 +1904,8 @@ if st.button("Label & Summarize"):
                         summary_text = str(summary_result)
                     
                     st.session_state["role_summaries"][lab] = summary_text
-                    st.markdown(f"**Summary for {lab}**: {summary_text}")
                 except Exception as e:
-                    st.error(f"Summarization failed for {lab}: {e}")
+                    pass
 
             prog.progress(100)
             st.success('Done')
@@ -1963,3 +1961,7 @@ if st.button("Generate Overall Summary"):
 st.markdown("---")
 #st.caption("Built from the user's Tkinter app — adapted for Streamlit. Models can be large; running locally with a GPU is recommended.")
 st.caption("Built for the Supreme Court of India Judgements dataset. Models can be large; running locally with a GPU is recommended.")
+
+
+
+
