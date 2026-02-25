@@ -1415,7 +1415,7 @@ abbreviations_dict = {
 }
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub.file_download")
-HF_TOKEN = "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"
+HF_TOKEN = "hf_xxxxxxxxxxxxxxxxxxxxx"
 # NOTE: Do not attempt any Hugging Face login at import time. The app
 # will perform `login()` only when the user explicitly provides a token
 # via the sidebar and clicks 'Load models'. This prevents automatic
@@ -1886,6 +1886,145 @@ def extract_statutes(text: str, max_items: int = 12):
     return deduped[:max_items]
 
 
+def extract_party_judge_info(preamble_text: str) -> dict:
+    info = {
+        "petitioner": [],
+        "respondent": [],
+        "bench": [],
+        "court": "",
+        "authors": [],
+        "date": "",
+    }
+    if not preamble_text or not preamble_text.strip():
+        return info
+
+    lines = [ln.strip() for ln in preamble_text.splitlines() if ln.strip()]
+    preamble_flat = re.sub(r"\s+", " ", preamble_text).strip()
+
+    # Court: usually in top lines in Indian judgments.
+    for ln in lines[:30]:
+        if re.search(r"\b(supreme court|high court|district court|court of)\b", ln, re.I):
+            info["court"] = re.sub(r"\s+", " ", ln).strip(" :-")
+            break
+
+    # Parties from "A vs B"/"A v. B"
+    for ln in lines[:80]:
+        m = re.search(r"^\s*(.+?)\s+(?:v(?:s\.?|\.))\s+(.+?)\s*$", ln, re.I)
+        if m:
+            left = re.sub(r"\s+", " ", m.group(1)).strip(" ,.-")
+            right = re.sub(r"\s+", " ", m.group(2)).strip(" ,.-")
+            if left and not info["petitioner"]:
+                info["petitioner"] = [left]
+            if right and not info["respondent"]:
+                info["respondent"] = [right]
+            break
+
+    # Parties from explicit tags.
+    for ln in lines[:120]:
+        pet = re.search(r"^(.*?)(?:\.\.\.|…|\s+-\s+)?\s*(petitioner|appellant)s?\b", ln, re.I)
+        res = re.search(r"^(.*?)(?:\.\.\.|…|\s+-\s+)?\s*(respondent)s?\b", ln, re.I)
+        if pet:
+            name = re.sub(r"\s+", " ", pet.group(1)).strip(" ,.-")
+            if name:
+                info["petitioner"].append(name)
+        if res:
+            name = re.sub(r"\s+", " ", res.group(1)).strip(" ,.-")
+            if name:
+                info["respondent"].append(name)
+
+    # Bench and authors from CORAM/BEFORE/HON'BLE lines.
+    capture_bench = False
+    for ln in lines[:160]:
+        bench_field = re.search(r"^\s*bench\s*[:\-]\s*(.+)$", ln, re.I)
+        if bench_field:
+            info["bench"].append(bench_field.group(1).strip())
+
+        if re.search(r"^\s*(coram|before)\s*:?", ln, re.I):
+            capture_bench = True
+            after = re.split(r":", ln, maxsplit=1)
+            if len(after) == 2 and after[1].strip():
+                info["bench"].append(after[1].strip())
+            continue
+
+        if capture_bench:
+            if re.search(r"^\s*(for petitioner|for respondent|date|judgment|order)\b", ln, re.I):
+                capture_bench = False
+            elif re.search(r"(hon'?ble|justice|j\.)", ln, re.I):
+                info["bench"].append(ln)
+
+        if re.search(r"(hon'?ble|justice|j\.)", ln, re.I):
+            info["authors"].append(ln)
+
+    # Author from "Author:" style fields.
+    for ln in lines[:120]:
+        m = re.search(r"^\s*author\s*[:\-]\s*(.+)$", ln, re.I)
+        if m:
+            info["authors"].append(m.group(1).strip())
+
+    # Date patterns.
+    date_patterns = [
+        r"\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\b",
+        r"\b(\d{1,2}\s+[A-Za-z]+,?\s+\d{4})\b",
+        r"\b([A-Za-z]+\s+\d{1,2},\s*\d{4})\b",
+    ]
+    # Common legal header form: "... vs ... on 5 August, 2022"
+    m_on_date = re.search(r"\bon\s+(\d{1,2}\s+[A-Za-z]+,?\s+\d{4})\b", preamble_flat, re.I)
+    if m_on_date:
+        info["date"] = m_on_date.group(1)
+
+    for ln in lines[:120]:
+        if info["date"]:
+            break
+        if re.search(r"\b(date|dated|pronounced|decided on)\b", ln, re.I):
+            for pat in date_patterns:
+                m = re.search(pat, ln)
+                if m:
+                    info["date"] = m.group(1)
+                    break
+        if info["date"]:
+            break
+    if not info["date"]:
+        for ln in lines[:120]:
+            for pat in date_patterns:
+                m = re.search(pat, ln)
+                if m:
+                    info["date"] = m.group(1)
+                    break
+            if info["date"]:
+                break
+
+    # De-duplicate and clean.
+    def _dedupe(items):
+        seen = set()
+        out = []
+        for item in items:
+            cleaned = re.sub(r"\s+", " ", str(item)).strip(" ,.-")
+            if not cleaned:
+                continue
+            key = cleaned.lower()
+            if key not in seen:
+                seen.add(key)
+                out.append(cleaned)
+        return out
+
+    info["petitioner"] = _dedupe(info["petitioner"])
+    info["respondent"] = _dedupe(info["respondent"])
+    info["bench"] = _dedupe(info["bench"])
+    info["authors"] = _dedupe(info["authors"])
+
+    return info
+
+
+def render_party_judge_info(info: dict):
+    st.markdown("### 👥 4️⃣ Party & Judge Extraction")
+    st.markdown(f"• **Petitioner:** {', '.join(info.get('petitioner', [])) or 'Not found'}")
+    st.markdown(f"• **Respondent:** {', '.join(info.get('respondent', [])) or 'Not found'}")
+    st.markdown(f"• **Bench:** {', '.join(info.get('bench', [])) or 'Not found'}")
+    st.markdown(f"• **Court:** {info.get('court', '') or 'Not found'}")
+    st.markdown(f"• **Authors:** {', '.join(info.get('authors', [])) or 'Not found'}")
+    st.markdown(f"• **Date:** {info.get('date', '') or 'Not found'}")
+
+
 
 # --- Streamlit UI ---
 st.title("Legal Rhetorical Role Labeling & Summarization")
@@ -1897,6 +2036,8 @@ if "case_topics" not in st.session_state:
     st.session_state["case_topics"] = []
 if "statutes_discussed" not in st.session_state:
     st.session_state["statutes_discussed"] = []
+if "party_judge_info" not in st.session_state:
+    st.session_state["party_judge_info"] = {}
 
 # Sidebar
 st.sidebar.header("Settings")
@@ -2017,6 +2158,7 @@ if st.button("Label & Summarize"):
     st.session_state["role_summaries"] = {}
     st.session_state["case_topics"] = []
     st.session_state["statutes_discussed"] = []
+    st.session_state["party_judge_info"] = {}
     if not cleaned_text:
         st.warning("Preprocess text first")
     elif not models_loaded:
@@ -2111,6 +2253,7 @@ if st.button("Label & Summarize"):
             topic_text = " ".join(" ".join(grouped.get(r, [])) for r in important_roles)
             st.session_state["case_topics"] = extract_topics(topic_text)
             st.session_state["statutes_discussed"] = extract_statutes(body_text)
+            st.session_state["party_judge_info"] = extract_party_judge_info(preamble_text)
 
             prog.progress(100)
             st.success('Done')
@@ -2127,6 +2270,9 @@ if st.button("Label & Summarize"):
                     st.markdown(f"• {statute}")
             else:
                 st.info("No statute/section patterns matched in the extracted judgment text.")
+            party_judge_info = st.session_state.get("party_judge_info", {})
+            if party_judge_info:
+                render_party_judge_info(party_judge_info)
 
 
 
@@ -2172,6 +2318,10 @@ if existing_statutes:
     st.markdown("### ⚖️ Statutes Discussed")
     for statute in existing_statutes:
         st.markdown(f"• {statute}")
+
+existing_party_judge_info = st.session_state.get("party_judge_info", {})
+if existing_party_judge_info:
+    render_party_judge_info(existing_party_judge_info)
 
 if st.button("Generate Overall Summary"):
     role_summaries = st.session_state.get("role_summaries", {})
