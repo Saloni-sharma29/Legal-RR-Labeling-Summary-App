@@ -2341,3 +2341,4 @@ if st.button("Generate Overall Summary"):
 st.markdown("---")
 #st.caption("Built from the user's Tkinter app — adapted for Streamlit. Models can be large; running locally with a GPU is recommended.")
 st.caption("Built for the Supreme Court of India Judgements dataset. Models can be large; running locally with a GPU is recommended.")
+
