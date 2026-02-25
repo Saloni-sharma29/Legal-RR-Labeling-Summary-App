@@ -19,17 +19,20 @@ labeling and summarization UI in Streamlit.
 """
 
 import os
+from typing import Any, cast
 import streamlit as st
 import PyPDF2
 import re
 import nltk
 import requests
 import pandas as pd
+import numpy as np
 from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import DBSCAN
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM, pipeline
 import json
-from transformers import pipeline
 from huggingface_hub import login
 
 # Page config must be the first Streamlit command
@@ -1412,7 +1415,7 @@ abbreviations_dict = {
 }
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub.file_download")
-HF_TOKEN = "hf_xxxxxxxxxxxxxxxxxxxxx"
+HF_TOKEN = "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"
 # NOTE: Do not attempt any Hugging Face login at import time. The app
 # will perform `login()` only when the user explicitly provides a token
 # via the sidebar and clicks 'Load models'. This prevents automatic
@@ -1626,7 +1629,10 @@ def load_summarizer_model(repo_id: str = "facebook/bart-large-cnn"):
     # 'summarization' task may not be registered and will raise KeyError.
     # Provide a lightweight fallback that uses model.generate directly.
     try:
-        summarizer = pipeline("summarization", model=model, tokenizer=tok, device=0 if torch.cuda.is_available() else -1)
+        # Cast for static type checkers; transformers.pipeline overloads can be
+        # too narrow for dynamically loaded Auto* models.
+        hf_pipeline = cast(Any, pipeline)
+        summarizer = hf_pipeline("summarization", model=model, tokenizer=tok, device=0 if torch.cuda.is_available() else -1)
         return summarizer
     except KeyError:
         # Fallback summarizer
@@ -1693,6 +1699,193 @@ def predict_labels_batch(sentences, tokenizer, model, label_encoder, batch_size=
     return labels
 
 
+@st.cache_resource(show_spinner=False)
+def load_topic_embedding_model(model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+    """
+    Load sentence embedding model once per session for topic clustering.
+    Returns None if sentence-transformers is unavailable.
+    """
+    try:
+        from sentence_transformers import SentenceTransformer
+        return SentenceTransformer(model_name)
+    except Exception:
+        return None
+
+
+def _keywords_from_sentences(sentences, top_k: int = 4):
+    if not sentences:
+        return []
+    try:
+        vectorizer = TfidfVectorizer(stop_words="english", ngram_range=(1, 2), max_features=3000)
+        mat = vectorizer.fit_transform(sentences)
+        if mat.shape[1] == 0:
+            return []
+        # scipy sparse stubs can be incomplete across environments; cast to Any
+        # so runtime-supported operations are accepted by static type checkers.
+        mat_any = cast(Any, mat)
+        scores = np.asarray(mat_any.mean(axis=0)).ravel()
+        terms = np.array(vectorizer.get_feature_names_out())
+        top_idx = np.argsort(scores)[::-1][:top_k]
+        return [str(terms[i]) for i in top_idx if scores[i] > 0]
+    except Exception:
+        return []
+
+
+def extract_topics(topic_text: str, max_topics: int = 5):
+    """
+    Topic extraction for legal summaries:
+    sentences -> MiniLM embeddings -> HDBSCAN/DBSCAN clustering -> top keywords per cluster.
+    """
+    if not topic_text or not topic_text.strip():
+        return []
+
+    sentences = [s.strip() for s in sent_tokenize(topic_text) if len(s.split()) >= 5]
+    if len(sentences) < 3:
+        return _keywords_from_sentences(sentences, top_k=min(max_topics, 4))
+
+    embedder = load_topic_embedding_model()
+    if embedder is None:
+        return _keywords_from_sentences(sentences, top_k=min(max_topics, 4))
+
+    try:
+        embeddings = embedder.encode(sentences, show_progress_bar=False)
+    except Exception:
+        return _keywords_from_sentences(sentences, top_k=min(max_topics, 4))
+
+    cluster_labels = None
+    try:
+        import hdbscan
+        min_cluster_size = max(2, min(8, len(sentences) // 5))
+        clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=1)
+        cluster_labels = clusterer.fit_predict(embeddings)
+    except Exception:
+        try:
+            # Fallback when hdbscan is not installed.
+            clusterer = DBSCAN(eps=0.65, min_samples=2, metric="euclidean")
+            cluster_labels = clusterer.fit_predict(embeddings)
+        except Exception:
+            return _keywords_from_sentences(sentences, top_k=min(max_topics, 4))
+
+    clusters = {}
+    for sent, lbl in zip(sentences, cluster_labels):
+        if lbl == -1:
+            continue
+        clusters.setdefault(int(lbl), []).append(sent)
+
+    if not clusters:
+        return _keywords_from_sentences(sentences, top_k=min(max_topics, 4))
+
+    ranked = sorted(clusters.items(), key=lambda x: len(x[1]), reverse=True)
+    topics = []
+    for _, cluster_sents in ranked[:max_topics]:
+        kws = _keywords_from_sentences(cluster_sents, top_k=3)
+        if kws:
+            title = " / ".join([kw.title() for kw in kws[:2]])
+            topics.append(title)
+
+    # De-duplicate while preserving order.
+    seen = set()
+    uniq = []
+    for t in topics:
+        key = t.lower()
+        if key not in seen:
+            seen.add(key)
+            uniq.append(t)
+    return uniq[:max_topics]
+
+
+def _normalize_act_name(name: str) -> str:
+    cleaned = re.sub(r"\s+", " ", name.replace("\n", " ")).strip(" ,.-")
+    lower = cleaned.lower()
+    alias_map = {
+        "ipc": "Indian Penal Code",
+        "i.p.c": "Indian Penal Code",
+        "crpc": "CrPC",
+        "cr. p. c": "CrPC",
+        "code of criminal procedure": "CrPC",
+        "evidence act": "Indian Evidence Act",
+        "indian evidence act": "Indian Evidence Act",
+        "constitution": "Constitution",
+    }
+    return alias_map.get(lower, cleaned.title())
+
+
+def extract_statutes(text: str, max_items: int = 12):
+    """
+    Regex + context extraction for statutes/sections/articles in legal judgments.
+    """
+    if not text or not text.strip():
+        return []
+
+    extracted = []
+    norm_text = re.sub(r"\s+", " ", text)
+
+    # Pattern: Section 302 of the Indian Penal Code / Evidence Act, 1872
+    pattern_section_of_act = re.compile(
+        r"\b(?:Section|Sec\.?)\s*(\d+[A-Za-z\-]*)\s+of\s+the\s+([A-Za-z][A-Za-z&.\- ]{2,}?(?:Act|Code|Constitution))(?:,\s*(\d{4}))?",
+        re.IGNORECASE,
+    )
+    for sec, act_name, year in pattern_section_of_act.findall(norm_text):
+        act_norm = _normalize_act_name(act_name)
+        if year and "Act" in act_norm and year not in act_norm:
+            act_norm = f"{act_norm}, {year}"
+        extracted.append(f"{act_norm} - Sec {sec}")
+
+    # Pattern: Indian Evidence Act, 1872
+    pattern_act_year = re.compile(
+        r"\b([A-Za-z][A-Za-z&.\- ]{2,}?\sAct),\s*(\d{4})\b",
+        re.IGNORECASE,
+    )
+    for act_name, year in pattern_act_year.findall(norm_text):
+        act_norm = _normalize_act_name(act_name)
+        extracted.append(f"{act_norm}, {year}")
+
+    # Pattern: Article 21 of the Constitution
+    pattern_article = re.compile(
+        r"\bArticle\s+(\d+[A-Za-z\-]*)\s+of\s+the\s+Constitution\b",
+        re.IGNORECASE,
+    )
+    for article in pattern_article.findall(norm_text):
+        extracted.append(f"Constitution - Art {article}")
+
+    # Common legal drafting formats:
+    # Section 302 IPC | Sec. 164 CrPC | u/s 27 Evidence Act | Section 302 of IPC
+    direct_ref_pattern = re.compile(
+        r"\b(?:Section|Sections|Sec\.?|S\.|u/s)\s*(\d+[A-Za-z\-\/]*)\s*(?:of\s+(?:the\s+)?)?(IPC|I\.?\s*P\.?\s*C\.?|CrPC|C\.?\s*r\.?\s*P\.?\s*C\.?|Indian Penal Code|Code of Criminal Procedure|Indian Evidence Act|Evidence Act|Constitution)\b",
+        re.IGNORECASE,
+    )
+    for sec, act_raw in direct_ref_pattern.findall(norm_text):
+        act_norm = _normalize_act_name(act_raw)
+        extracted.append(f"{act_norm} - Sec {sec}")
+
+    # Hybrid/context pattern: Act acronym near section mention.
+    act_aliases = [
+        (r"\bI\.?\s*P\.?\s*C\.?\b|\bIPC\b|Indian Penal Code", "Indian Penal Code"),
+        (r"\bC\.?\s*r\.?\s*P\.?\s*C\.?\b|\bCrPC\b|Code of Criminal Procedure", "CrPC"),
+        (r"\bEvidence Act\b|Indian Evidence Act", "Indian Evidence Act"),
+    ]
+    for alias_pat, canonical in act_aliases:
+        near_pattern = re.compile(
+            rf"(?:{alias_pat})[\s,:;\-]{{0,25}}(?:Section|Sec\.?)\s*(\d+[A-Za-z\-]*)|(?:Section|Sec\.?)\s*(\d+[A-Za-z\-]*)[\s,:;\-]{{0,25}}(?:{alias_pat})",
+            re.IGNORECASE,
+        )
+        for m in near_pattern.findall(norm_text):
+            sec = m[0] if m[0] else m[1]
+            if sec:
+                extracted.append(f"{canonical} - Sec {sec}")
+
+    # Order-preserving de-duplication.
+    seen = set()
+    deduped = []
+    for item in extracted:
+        key = item.lower()
+        if key not in seen:
+            seen.add(key)
+            deduped.append(item)
+
+    return deduped[:max_items]
+
+
 
 # --- Streamlit UI ---
 st.title("Legal Rhetorical Role Labeling & Summarization")
@@ -1700,6 +1893,10 @@ st.title("Legal Rhetorical Role Labeling & Summarization")
 # Ensure session state key exists
 if "role_summaries" not in st.session_state:
     st.session_state["role_summaries"] = {}
+if "case_topics" not in st.session_state:
+    st.session_state["case_topics"] = []
+if "statutes_discussed" not in st.session_state:
+    st.session_state["statutes_discussed"] = []
 
 # Sidebar
 st.sidebar.header("Settings")
@@ -1818,6 +2015,8 @@ preamble_text = extract_preamble_block(raw_text)
 # Run labeling & summarization
 if st.button("Label & Summarize"):
     st.session_state["role_summaries"] = {}
+    st.session_state["case_topics"] = []
+    st.session_state["statutes_discussed"] = []
     if not cleaned_text:
         st.warning("Preprocess text first")
     elif not models_loaded:
@@ -1907,8 +2106,27 @@ if st.button("Label & Summarize"):
                 except Exception as e:
                     pass
 
+            # Topic modeling from key rhetorical roles.
+            important_roles = ["ISSUE", "ANALYSIS", "FAC"]
+            topic_text = " ".join(" ".join(grouped.get(r, [])) for r in important_roles)
+            st.session_state["case_topics"] = extract_topics(topic_text)
+            st.session_state["statutes_discussed"] = extract_statutes(body_text)
+
             prog.progress(100)
             st.success('Done')
+
+            topics = st.session_state.get("case_topics", [])
+            if topics:
+                st.markdown("### 🧭 Case Topics")
+                for topic in topics:
+                    st.markdown(f"• {topic}")
+            statutes = st.session_state.get("statutes_discussed", [])
+            if statutes:
+                st.markdown("### ⚖️ Statutes Discussed")
+                for statute in statutes:
+                    st.markdown(f"• {statute}")
+            else:
+                st.info("No statute/section patterns matched in the extracted judgment text.")
 
 
 
@@ -1943,6 +2161,18 @@ def generate_overall_summary(role_summaries: dict) -> str:
 st.markdown("---")
 st.subheader("Overall Judgment Summary")
 
+existing_topics = st.session_state.get("case_topics", [])
+if existing_topics:
+    st.markdown("### 🧭 Case Topics")
+    for topic in existing_topics:
+        st.markdown(f"• {topic}")
+
+existing_statutes = st.session_state.get("statutes_discussed", [])
+if existing_statutes:
+    st.markdown("### ⚖️ Statutes Discussed")
+    for statute in existing_statutes:
+        st.markdown(f"• {statute}")
+
 if st.button("Generate Overall Summary"):
     role_summaries = st.session_state.get("role_summaries", {})
 
@@ -1961,7 +2191,3 @@ if st.button("Generate Overall Summary"):
 st.markdown("---")
 #st.caption("Built from the user's Tkinter app — adapted for Streamlit. Models can be large; running locally with a GPU is recommended.")
 st.caption("Built for the Supreme Court of India Judgements dataset. Models can be large; running locally with a GPU is recommended.")
-
-
-
-
