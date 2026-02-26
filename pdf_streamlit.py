@@ -2016,7 +2016,7 @@ def extract_party_judge_info(preamble_text: str) -> dict:
 
 
 def render_party_judge_info(info: dict):
-    st.markdown("### 👥 4️⃣ Party & Judge Extraction")
+    st.markdown("### 👥 Party & Judge Extraction")
     st.markdown(f"• **Petitioner:** {', '.join(info.get('petitioner', [])) or 'Not found'}")
     st.markdown(f"• **Respondent:** {', '.join(info.get('respondent', [])) or 'Not found'}")
     st.markdown(f"• **Bench:** {', '.join(info.get('bench', [])) or 'Not found'}")
