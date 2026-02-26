@@ -36,7 +36,7 @@ import json
 from huggingface_hub import login
 
 # Page config must be the first Streamlit command
-st.set_page_config(page_title="Legal Rhetorical Role Labeling", layout='wide')
+st.set_page_config(page_title="Legal Rhetorical Role Labeling", layout='wide', initial_sidebar_state="collapsed")
 
 
 #torch.classes.__path__ = [] # add this line to manually set it to empty.
