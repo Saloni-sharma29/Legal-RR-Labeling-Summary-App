@@ -2154,7 +2154,7 @@ preamble_text = extract_preamble_block(raw_text)
 #remaining_text = raw_text.replace(preamble_text, "")
 
 # Run labeling & summarization
-if st.button("Summarize"):
+if st.button("Rhetorical Role Label"):
     st.session_state["role_summaries"] = {}
     st.session_state["case_topics"] = []
     st.session_state["statutes_discussed"] = []
