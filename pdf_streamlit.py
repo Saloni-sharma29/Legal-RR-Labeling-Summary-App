@@ -2092,7 +2092,7 @@ else:
 
 with col2:
     st.subheader("Refined text")
-    st.text_area("Preprocessed", value=cleaned_text, height=300)
+    st.text_area("Refined", value=cleaned_text, height=300)
 
 found_abbreviations = find_abbreviations(raw_text, abbreviations_dict)
 # Abbreviations 
