@@ -2076,7 +2076,7 @@ with col1:
     st.text_area("Extracted", value=raw_text, height=300)
 
 # Preprocess
-preprocess_button = st.button("Preprocess text")
+preprocess_button = st.button("Refine text")
 if preprocess_button:
     cleaned_text = preprocess_text(raw_text)
     cleaned_text = expand_abbreviations_safe(cleaned_text, abbreviations_dict)
@@ -2091,7 +2091,7 @@ else:
     cleaned_text = st.session_state.get('cleaned_text', '')
 
 with col2:
-    st.subheader("Preprocessed text")
+    st.subheader("Refined text")
     st.text_area("Preprocessed", value=cleaned_text, height=300)
 
 found_abbreviations = find_abbreviations(raw_text, abbreviations_dict)
