@@ -2838,7 +2838,7 @@ with col1:
     st.text_area("Extracted", value=raw_text, height=300)
 
 # Preprocess
-preprocess_button = st.button("Preprocess text")
+preprocess_button = st.button("Refine text")
 if preprocess_button:
     cleaned_text = preprocess_text(raw_text)
     cleaned_text = expand_abbreviations_safe(cleaned_text, abbreviations_dict)
@@ -3089,7 +3089,7 @@ if st.button("Generate Overall Summary"):
     role_summaries = st.session_state.get("role_summaries", {})
 
     if not role_summaries:
-        st.warning("Please generate rhetorical summaries first.")
+        st.warning("Please Click on the |Label Sentnces| button first)
     else:
         overall_summary = generate_overall_summary(role_summaries)
         st.text_area(
