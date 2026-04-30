@@ -2838,7 +2838,7 @@ with col1:
     st.text_area("Extracted", value=raw_text, height=300)
 
 # Preprocess
-preprocess_button = st.button("Refine text")
+preprocess_button = st.button("Refine Text")
 if preprocess_button:
     cleaned_text = preprocess_text(raw_text)
     cleaned_text = expand_abbreviations_safe(cleaned_text, abbreviations_dict)
@@ -2858,7 +2858,7 @@ with col2:
 
 found_abbreviations = find_abbreviations(raw_text, abbreviations_dict)
 # Abbreviations 
-if st.button("Show abbreviations found"):
+if st.button("Show Abbreviations List"):
     if found_abbreviations:
         st.write("Abbreviations detected in judgment:")
         for abbr in found_abbreviations:
@@ -2916,7 +2916,7 @@ preamble_text = extract_preamble_block(raw_text)
 #remaining_text = raw_text.replace(preamble_text, "")
 
 # Run labeling & summarization
-if st.button("Label & Summarize"):
+if st.button("Label Sentences"):
     st.session_state["role_summaries"] = {}
     st.session_state["case_topics"] = []
     st.session_state["statutes_discussed"] = []
