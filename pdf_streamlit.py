@@ -3089,7 +3089,7 @@ if st.button("Generate Overall Summary"):
     role_summaries = st.session_state.get("role_summaries", {})
 
     if not role_summaries:
-        st.warning("Please Click on the |Label Sentnces| button first)
+        st.warning("Please Click on the |Label Sentnces| button first")
     else:
         overall_summary = generate_overall_summary(role_summaries)
         st.text_area(
