@@ -2853,8 +2853,8 @@ else:
     cleaned_text = st.session_state.get('cleaned_text', '')
 
 with col2:
-    st.subheader("Preprocessed text")
-    st.text_area("Preprocessed", value=cleaned_text, height=300)
+    st.subheader("Refined text")
+    st.text_area("Refined", value=cleaned_text, height=300)
 
 found_abbreviations = find_abbreviations(raw_text, abbreviations_dict)
 # Abbreviations 
