@@ -13,6 +13,8 @@ scikit-learn
 nltk
 PyPDF2
 requests
+bertopic
+hdbscan
 
 This file bundles the preprocessing, abbreviation search, model loading (cached),
 labeling and summarization UI in Streamlit.
@@ -29,7 +31,7 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.cluster import DBSCAN
+from sklearn.feature_extraction.text import TfidfVectorizer
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM, pipeline
 import json
@@ -58,9 +60,9 @@ except Exception:
         return [p.strip() for p in pieces if p.strip()]
 
 
-
 # --- Abbreviations dictionary (from user's original code) ---
 abbreviations_dict = {
+"sc/st": "scheduled Caste/Scheduled Tribe",
 "(P) Ltd.": "private limited",
 #"§": "section",
 #"§§": "multiple sections",
@@ -339,15 +341,17 @@ abbreviations_dict = {
 "cpcb": "central pollution control board",
 "cpi": "communist party of india",
 "cpi(m)": "communist party of india (marxist)",
-"cr. pc": "criminal procedure code",
+"cr.pc": "criminal procedure code",
 "cr.": "civil revision",
 "cr.p.c.":"criminal procedure code",
 "crc": "camera ready copy",
 "crl. a.": "criminal appeal",
-"crl.": "criminal",
+"c rl.": "criminal",
+"crl": "criminal revision leave",
 "crl.o.p.": "criminal original petition",
 "crl.r.c.": "crl. revision case",
 "crm.": "client relationship management",
+"cr j": "crime and justice",
 "crm-m": 'criminal main',
 "cross. obj.": "cross objection" ,
 "crp": "criminal procedure",
@@ -683,7 +687,6 @@ abbreviations_dict = {
 "jd(u)": "janata dal (united)",
 "jdr": "judicial dispute resolution",
 "jdx": "jurisdiction",
-"jj": "judges",
 "jj": "juvenile justice",
 "jmm": "jharkhand mukti morcha",
 "jmol": "judgment as a matter of law",
@@ -799,7 +802,7 @@ abbreviations_dict = {
 "moj": "ministry of justice",
 "mos.":"months",
 "mou": "memorandum of understanding",
-"mp": "member of parliament",
+#"mp": "member of parliament",
 "mplads": "member of parliament local area development scheme",
 "mpp": "manipur people's party",
 "mr": "postnominals of the master of the rolls",
@@ -1029,7 +1032,7 @@ abbreviations_dict = {
 "r.p.c.": "ruling by present court",
 "r.s. b.n. (i)/(ii)": "rajya sabha bulletin part i/ii",
 "r.s. d.e.b.": "rajya sabha debates",
-"r.s.": "rajya sabha",
+#"r.s.": "rajya sabhaaaaaaaa",
 "r.s.p.": "revolutionary socialist party",
 "r.t.":"referred trial",
 "r.t.i.": "right to information",
@@ -1210,6 +1213,8 @@ abbreviations_dict = {
 "tsr": "territorial special report",
 "ttv": "temporary television",
 "u.c.c.": "uniform commercial code",
+"f.a.t.": "tender of first appeal",
+"f.a": "first appeal",
 "u.c.c.j.e.a.": "uniform child custody jurisdiction and enforcement act",
 "u.d.p.f.": "united democratic front",
 "u.l.f.a.": "united liberation front of assam",
@@ -1254,7 +1259,7 @@ abbreviations_dict = {
 "vc": "vice-chancellor",
 "vd": "voter database",
 "vict.": "victoria",
-"vide": "see",
+#"vide": "see",
 "vip": "very important person",
 "viz.": "videlicet",
 "voc": "victim of crime",
@@ -1411,8 +1416,563 @@ abbreviations_dict = {
 "you'll": "you shall / you will",
 "you'll've": "you shall have / you will have",
 "you're": "you are",
-"you've": "you have"
+"you've": "you have",
+"Sr. No.": "Serial Number",
+"&": "and",
+"@": "at",
+"%": "percent",
+"$": "dollar",
+"₹": "rupee",
+"£": "pound","€": "euro",
+"°": "degree",
+"±": "plus-minus",
+"lpa": "Letters Patent Appeal",
+"aft": "armed forces tribunal",
+"aft.": "armed forces tribunal",
+"afcat": "armed forces court of appeal tribunal",
+
+"arb.a.": "arbitration appeal",
+"arb.p.": "arbitration petition",
+"arb.op.": "arbitration original petition",
+"arb. appl.": "arbitration application",
+
+"bat": "banking appellate tribunal",
+"boi": "bank of india",
+"sbi": "state bank of india",
+"pnb": "punjab national bank",
+"rbl": "ratnakar bank limited",
+"icici": "industrial credit and investment corporation of india",
+"hdfc": "housing development finance corporation",
+
+"cat": "central administrative tribunal",
+"cat.": "central administrative tribunal",
+"cestat": "customs excise and service tax appellate tribunal",
+"sat.": "securities appellate tribunal",
+"drat": "debt recovery appellate tribunal",
+"drt-i": "debt recovery tribunal one",
+"drt-ii": "debt recovery tribunal two",
+
+"nia": "national investigation agency",
+"ncb": "narcotics control bureau",
+"sfio": "serious fraud investigation office",
+"ed": "enforcement directorate",
+"cvc.": "central vigilance commission",
+"lokpal": "anti corruption ombudsman",
+
+"cav": "case reserved for judgment",
+"cav.": "case reserved for judgment",
+"dictated": "dictated in open court",
+"pron.": "pronounced",
+"pronounced on": "judgment pronounced on",
+"resvd.": "reserved",
+"resvd": "reserved",
+
+"ia": "interlocutory application",
+"i.a.": "interlocutory application",
+"ias": "interlocutory applications",
+"cma": "civil miscellaneous application",
+"cm": "civil miscellaneous",
+"cmp": "civil miscellaneous petition",
+"crmp": "criminal miscellaneous petition",
+"misc. appl.": "miscellaneous application",
+
+"oa": "original application",
+"o.a.": "original application",
+"ra": "review application",
+"r.a.": "review application",
+"ma": "miscellaneous application",
+"m.a.": "miscellaneous application",
+"ta": "transfer application",
+"t.a.": "transfer application",
+
+"fao": "first appeal from order",
+"fao.": "first appeal from order",
+"rfa": "regular first appeal",
+"r.f.a.": "regular first appeal",
+"rsa": "regular second appeal",
+"r.s.a.": "regular second appeal",
+"sao": "second appeal from order",
+"cao": "civil appeal order",
+
+"cra": "criminal appeal",
+"cr.a.": "criminal appeal",
+"cr.rev.": "criminal revision",
+"crl.appeal": "criminal appeal",
+"crl.rev.": "criminal revision",
+
+"wa": "writ appeal",
+"w.a": "writ appeal",
+"wp(c)": "writ petition civil",
+"wp(crl)": "writ petition criminal",
+"wpc": "writ petition civil",
+"w.p.(c)": "writ petition civil",
+"w.p.(crl.)": "writ petition criminal",
+
+"sla": "special leave appeal",
+"sla.": "special leave appeal",
+"sca": "special civil application",
+"sca.": "special civil application",
+
+"lp": "letters patent",
+"lpa.": "letters patent appeal",
+"lpa no.": "letters patent appeal number",
+
+"db": "division bench",
+"sb": "single bench",
+"fb": "full bench",
+"cb": "constitution bench",
+
+"cjm.": "chief judicial magistrate",
+"jmfc": "judicial magistrate first class",
+"jm": "judicial magistrate",
+"mm": "metropolitan magistrate",
+"acmm": "additional chief metropolitan magistrate",
+"cmm": "chief metropolitan magistrate",
+
+"adj": "additional district judge",
+"dj": "district judge",
+"pdj": "principal district judge",
+"ld. counsel": "learned counsel",
+"ld. adv.": "learned advocate",
+
+"u/s": "under section",
+"u.s.": "under section",
+"r/w": "read with",
+"rw": "read with",
+"sub-sec.": "sub section",
+"prov.": "proviso",
+"expl.": "explanation",
+"sched.": "schedule",
+"sch.": "schedule",
+
+"or.": "order",
+"ord.": "order",
+"ordr.": "order",
+"decr": "decree",
+"decr.": "decree",
+"judgt.": "judgment",
+
+"pltf": "plaintiff",
+"pltff": "plaintiff",
+"deft": "defendant",
+"resp.": "respondent",
+"app.": "appellant",
+"petnr": "petitioner",
+"petr": "petitioner",
+
+"co-applicant": "co applicant",
+"co-owner": "co owner",
+"lr": "legal representative",
+"lrs": "legal representatives",
+
+"pocsa": "protection of children from sexual assault act",
+"jj act": "juvenile justice act",
+"dv act": "domestic violence act",
+"ni act": "negotiable instruments act",
+"tp act": "transfer of property act",
+"evidence act": "indian evidence act",
+"contract act": "indian contract act",
+"companies act": "companies act",
+"it act": "information technology act",
+
+"hcj": "high court judge",
+"scj.": "supreme court judge",
+"cji.": "chief justice of india",
+
+"doa": "date of appointment",
+"dob": "date of birth",
+"dod": "date of decision",
+"doj.": "date of joining",
+"dt.of ord.": "date of order",
+
+"annx.": "annexure",
+"annxr.": "annexure",
+"ann.": "annexure",
+"enc.": "enclosure",
+
+"ibid": "same source as previous citation",
+"id.": "same author immediately cited",
+"suppl": "supplementary",
+"corrig.": "corrigendum",
+"sct": "Service Cases Today",
+"SERVING/SERVLR": "Service Law Reporter (Reports cases related to government service and employment)"
 }
+
+# --- Context-aware legal abbreviation resolution (100 ambiguous abbreviations) ---
+
+contextual_abbreviations = {
+
+    "SC": [
+        {"full": "Scheduled Caste",
+         "keywords": ["act", "reservation","quota","category","caste","certificate","student","community", "scheduled"]},
+        {"full": "Supreme Court",
+         "keywords": ["bench","judge","appeal","petition","judgment","order","hearing", "court", "scri"]}
+    ],
+
+    "SC/ST": [
+        {"full": "Scheduled Caste/Scheduled Tribe",
+         "keywords": ["prevention", "atrocities", "act", "special court", "district"]}
+    ],
+    "r.s.": [
+        {"full": "Rajya Sabha", 
+         "keywords": ["parliament","upper house","debates","bulletin"]},
+        {"full": "Rupees", 
+         "keywords": ["currency","amount","rs.","rupees"]} 
+    ],
+    "bc": [
+        {"full": "Backward Class",
+         "keywords": ["reservation","quota","category","caste","certificate","student","community"]},
+        {"full": "Birth Certificate",
+         "keywords": ["birth","certificate","issued","date","place"]}
+    ],
+    "hc": [
+        {"full": "High Court",
+         "keywords": ["court","judge","bench","petition","appeal","writ","order"]},
+        {"full": "Handicapped",
+         "keywords": ["disabled","person","benefit","medical","certificate","quota"]}
+    ],
+
+    "st": [
+        {"full": "Scheduled Tribe",
+         "keywords": ["tribe","reservation","community","certificate","quota","schedule","act"]},
+        {"full": "Street",
+         "keywords": ["road","address","lane","city","market"]}
+    ],
+
+    "ca": [
+        {"full": "Civil Appeal",
+         "keywords": ["court","appeal","bench","judgment","filed"]},
+        {"full": "Chartered Accountant",
+         "keywords": ["audit","tax","finance","accounts","firm"]}
+    ],
+
+    "oa": [
+        {"full": "Original Application",
+         "keywords": ["tribunal","service","petition","matter","filed"]},
+        {"full": "Official Assignee",
+         "keywords": ["insolvency","estate","bankruptcy","property"]}
+    ],
+
+    "ra": [
+        {"full": "Review Application",
+         "keywords": ["court","judgment","petition","filed","order"]},
+        {"full": "Regular Appeal",
+         "keywords": ["appeal","civil","district","decree"]}
+    ],
+
+    "rp": [
+        {"full": "Review Petition",
+         "keywords": ["supreme","court","judgment","filed"]},
+        {"full": "Revision Petition",
+         "keywords": ["revision","lower","court","challenge"]}
+    ],
+
+    "ma": [
+        {"full": "Miscellaneous Application",
+         "keywords": ["application","court","petition","interim","order"]},
+        {"full": "Motor Accident",
+         "keywords": ["vehicle","injury","claim","compensation","accident"]}
+    ],
+
+    "po": [
+        {"full": "Proclaimed Offender",
+         "keywords": ["accused","criminal","absconding","warrant","police"]},
+        {"full": "Presiding Officer",
+         "keywords": ["tribunal","court","authority","hearing","officer"]}
+    ],
+
+    "io": [
+        {"full": "Investigating Officer",
+         "keywords": ["police","charge","FIR","investigation","crime"]},
+        {"full": "Income Officer",
+         "keywords": ["tax","assessment","income","department"]}
+    ],
+
+    "co": [
+        {"full": "Court Order",
+         "keywords": ["judge","bench","issued","passed","court"]},
+        {"full": "Circle Officer",
+         "keywords": ["revenue","district","land","officer"]}
+    ],
+
+    "do.": [
+        {"full": "Defence Officer",
+         "keywords": ["army","military","defence","service"]},
+        {"full": "District Officer",
+         "keywords": ["district","administration","office","collector"]}
+    ],
+
+    "so.": [
+        {"full": "Standing Order",
+         "keywords": ["government","notification","policy","issued"]},
+        {"full": "Sub Officer",
+         "keywords": ["department","rank","staff"]}
+    ],
+
+    "ro": [
+        {"full": "Returning Officer",
+         "keywords": ["election","vote","poll","candidate"]},
+        {"full": "Revenue Officer",
+         "keywords": ["land","mutation","revenue","tehsil"]}
+    ],
+
+    "eo": [
+        {"full": "Executive Officer",
+         "keywords": ["municipal","board","office","authority"]},
+        {"full": "Election Officer",
+         "keywords": ["poll","vote","candidate","booth"]}
+    ],
+
+    "dm": [
+        {"full": "District Magistrate",
+         "keywords": ["district","administration","magistrate","order"]},
+        {"full": "Direct Message",
+         "keywords": ["social media","message","chat"]}
+    ],
+
+    "sdm": [
+        {"full": "Sub Divisional Magistrate",
+         "keywords": ["district","land","revenue","magistrate"]},
+        {"full": "Senior Duty Manager",
+         "keywords": ["railway","airport","manager"]}
+    ],
+
+    "sp": [
+        {"full": "Superintendent of Police",
+         "keywords": ["police","district","crime","officer"]},
+        {"full": "Special Petition",
+         "keywords": ["court","filed","appeal"]}
+    ],
+
+    "dsp": [
+        {"full": "Deputy Superintendent of Police",
+         "keywords": ["police","crime","district"]},
+        {"full": "Digital Signal Processing",
+         "keywords": ["engineering","signal","system"]}
+    ],
+
+    "dcp": [
+        {"full": "Deputy Commissioner of Police",
+         "keywords": ["police","zone","crime"]},
+        {"full": "District Consumer Panel",
+         "keywords": ["consumer","complaint"]}
+    ],
+
+    "ig": [
+        {"full": "Inspector General",
+         "keywords": ["police","department","rank"]},
+        {"full": "Income Group",
+         "keywords": ["economy","housing","scheme"]}
+    ],
+
+    "dig": [
+        {"full": "Deputy Inspector General",
+         "keywords": ["police","rank","department"]},
+        {"full": "Digital India Group",
+         "keywords": ["technology","initiative"]}
+    ],
+
+    "cji": [
+        {"full": "Chief Justice of India",
+         "keywords": ["supreme","court","bench","judge"]},
+        {"full": "Central Judicial Institute",
+         "keywords": ["training","academy"]}
+    ],
+
+    "cj": [
+        {"full": "Chief Justice",
+         "keywords": ["court","judge","bench"]},
+        {"full": "Civil Judge",
+         "keywords": ["trial","district","civil"]}
+    ],
+
+    "db": [
+        {"full": "Division Bench",
+         "keywords": ["court","judges","bench","appeal"]},
+        {"full": "Double Bed",
+         "keywords": ["hotel","room","furniture"]}
+    ],
+
+    "sb": [
+        {"full": "Single Bench",
+         "keywords": ["court","judge","bench"]},
+        {"full": "Savings Bank",
+         "keywords": ["account","bank","deposit"]}
+    ],
+
+    "fb": [
+        {"full": "Full Bench",
+         "keywords": ["court","judges","bench"]},
+        {"full": "Facebook",
+         "keywords": ["social media","post","online"]}
+    ],
+
+    "lb": [
+        {"full": "Larger Bench",
+         "keywords": ["court","reference","judges"]},
+        {"full": "Pound",
+         "keywords": ["weight","kg","measure"]}
+    ],
+
+    "cw": [
+        {"full": "Civil Writ",
+         "keywords": ["petition","high court","constitution"]},
+        {"full": "Court Witness",
+         "keywords": ["trial","evidence","witness"]}
+    ],
+
+
+    "sa": [
+        {"full": "Second Appeal",
+         "keywords": ["appeal","civil","court"]},
+        {"full": "Special Audit",
+         "keywords": ["tax","accounts","audit"]}
+    ],
+
+    "fa": [
+        {"full": "First Appeal",
+         "keywords": ["court","decree","appeal"]},
+        {"full": "Financial Assistance",
+         "keywords": ["grant","aid","fund"]}
+    ],
+
+    "ea": [
+        {"full": "Execution Application",
+         "keywords": ["decree","execution","court"]},
+        {"full": "Environmental Assessment",
+         "keywords": ["pollution","project","clearance"]}
+    ],
+
+    "ep": [
+        {"full": "Execution Petition",
+         "keywords": ["decree","execution","court"]},
+        {"full": "Election Petition",
+         "keywords": ["vote","candidate","election"]}
+    ],
+
+    "c.a.t": [
+        {"full": "Central Administrative Tribunal",
+         "keywords": ["service","employee","tribunal","government"]},
+        {"full": "Cat",
+         "keywords": ["animal","pet","tail"]}
+    ],
+
+    "s.a.t": [
+        {"full": "Securities Appellate Tribunal",
+         "keywords": ["sebi","market","appeal","tribunal"]},
+        {"full": "Scholastic Aptitude Test",
+         "keywords": ["exam","student","admission"]}
+    ],
+
+    "a.f.t": [
+        {"full": "Armed Forces Tribunal",
+         "keywords": ["army","service","military","tribunal"]},
+        {"full": "After",
+         "keywords": ["time","later"]}
+    ],
+
+    "d.r.t": [
+        {"full": "Debt Recovery Tribunal",
+         "keywords": ["bank","loan","recovery","tribunal"]},
+        {"full": "Daily Routine Task",
+         "keywords": ["task","daily"]}
+    ],
+
+    "m.a.c.t": [
+        {"full": "Motor Accident Claims Tribunal",
+         "keywords": ["vehicle","injury","compensation","claim"]},
+        {"full": "Management Committee",
+         "keywords": ["committee","meeting"]}
+    ],
+
+    "RERA": [
+        {"full": "Real Estate Regulatory Authority",
+         "keywords": ["builder","flat","project","property"]},
+        {"full": "Rare Earth Research Agency",
+         "keywords": ["mineral","research"]}
+    ],
+
+    "ipc": [
+        {"full": "Indian Penal Code",
+         "keywords": ["section","crime","offence","punishment"]},
+        {"full": "Inter Process Communication",
+         "keywords": ["computer","system","software"]}
+    ],
+
+
+    "COI": [
+        {"full": "Constitution of India",
+         "keywords": ["article","fundamental","rights"]},
+        {"full": "Certificate of Insurance",
+         "keywords": ["vehicle","policy"]}
+    ],
+
+    "mp": [
+        {"full": "Member of Parliament",
+         "keywords": ["lok sabha","rajya sabha","election"]},
+        {"full": "Madhya Pradesh",
+         "keywords": ["state","bhopal","indore"]}
+    ],
+
+    "NDPS": [
+        {"full": "Narcotic Drugs and Psychotropic Substances Act",
+         "keywords": ["drug","contraband","seizure","bail"]},
+        {"full": "National Data Protection Scheme",
+         "keywords": ["data","privacy"]}
+    ],
+
+    "UAPA": [
+        {"full": "Unlawful Activities Prevention Act",
+         "keywords": ["terror","security","bail"]},
+        {"full": "Urban Area Planning Authority",
+         "keywords": ["city","planning"]}
+    ],
+
+
+
+}
+
+
+def get_context_window(text: str, start: int, end: int, window_chars: int = 250) -> str:
+    left = max(0, start - window_chars)
+    right = min(len(text), end + window_chars)
+    return text[left:right]
+
+
+def choose_best_abbreviation_expansion(context_text: str, candidates: list[dict], original_abbr: str = str(None)) -> str:
+    context_lower = context_text.lower()
+    best_candidate = None
+    best_score = -1
+
+    # Citation indicators that strongly suggest "Supreme Court"
+    citation_indicators = ["aironline", "scc", "scale", "sct", "adj", "servlj", "servlr", "esc", "lab ln", "scri"]
+    
+    for candidate in candidates:
+        score = sum(
+            1 for kw in candidate.get("keywords", []) if kw.lower() in context_lower
+        )
+        
+        # Boost score for Supreme Court when citation patterns found
+        if candidate.get("full") == "Supreme Court":
+            for indicator in citation_indicators:
+                if indicator in context_lower:
+                    score += 3  # Strong boost for citation context
+        
+        if score > best_score:
+            best_score = score
+            best_candidate = candidate
+
+    if best_candidate is None:
+        if original_abbr and len(candidates) > 1:
+            return original_abbr
+        return candidates[0]["full"]
+
+    if best_score <= 0 and len(candidates) > 1:
+        # Ambiguous when no keywords match; preserve the abbreviation.
+        return original_abbr or candidates[0]["full"]
+
+    return best_candidate["full"]
+
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub.file_download")
 HF_TOKEN = "hf_xxxxxxxxxxxxxxxxxxxxx"
@@ -1439,26 +1999,104 @@ PARTY_MARKERS = [
     "APPELLANT(S)",
     "RESPONDENT(S)",
     "PETITIONER(S)",
-    "CLAIMANT(S)"
+    "CLAIMANT(S)",
+    "APPELLANTS",
+    "RESPONDENTS",
+    "PETITIONERS",
+    "CLAIMANTS"
 ]
 
 def protect_parentheses(text):
+    """
+    Smart parenthesis protection for Indian legal judgments.
+
+    Protect:
+    - Party labels: (APPELLANT(S)), (RESPONDENT(S))
+    - Section references: (1), (2), (r), (s), (va)
+    - Case numbering blocks: (Crl.), (Diary No. 1234) optional if complex
+    - Citations / years: (2025), (1989)
+    - Nested factual notes
+
+    Do NOT protect:
+    - Legal abbreviations needing expansion:
+      (CRL.), (C), (CIVIL), (CRIMINAL), (SLP), (SC/ST)
+    """
+
     protected = {}
     counter = 0
 
+    # abbreviations that must remain visible for expansion
+    dont_protect = {
+        "CRL", "CRL.", "CRL.A.", "C", "C.", "CIVIL",
+        "CRIMINAL", "SLP", "SLP.", "SC", "ST", "SC/ST",
+        "WP", "W.P.", "LPA", "RSA", "FAO"
+    }
+
     def replacer(match):
         nonlocal counter
-        value = match.group(0)
-        # 🚫 Do NOT protect party markers
-        for p in PARTY_MARKERS:
-            if p.lower() in value.lower():
-                return value
-        key = f"__PAREN_{counter}__"
-        protected[key] = value
-        counter += 1
-        return key
 
-    text = re.sub(r'\([^)]*\)', replacer, text)
+        value = match.group(0)          # full "(...)"
+        inner = value[1:-1].strip()     # content only
+
+        inner_upper = inner.upper()
+
+        # -------------------------------------------------
+        # 1. DO NOT PROTECT abbreviations needing expansion
+        # -------------------------------------------------
+        if inner_upper in dont_protect:
+            return value
+
+        # -------------------------------------------------
+        # 2. DO NOT PROTECT if contains CRL spaced PDF noise
+        # e.g. (C RL.), (C R L)
+        # -------------------------------------------------
+        if re.fullmatch(r'C\s*R\s*L\.?', inner, re.I):
+            return value
+
+        # -------------------------------------------------
+        # 3. PROTECT party markers
+        # -------------------------------------------------
+        for marker in PARTY_MARKERS:
+            if marker.upper() in inner_upper:
+                key = f"__PAREN_{counter}__"
+                protected[key] = value
+                counter += 1
+                return key
+
+        # -------------------------------------------------
+        # 4. PROTECT section clauses
+        # (1), (2), (r), (s), (va), (ii), (a)
+        # -------------------------------------------------
+        if re.fullmatch(r'[0-9A-Za-zivxIVX\-]+', inner):
+            key = f"__PAREN_{counter}__"
+            protected[key] = value
+            counter += 1
+            return key
+
+        # -------------------------------------------------
+        # 5. PROTECT years
+        # -------------------------------------------------
+        if re.fullmatch(r'(18|19|20)\d{2}', inner):
+            key = f"__PAREN_{counter}__"
+            protected[key] = value
+            counter += 1
+            return key
+
+        # -------------------------------------------------
+        # 6. PROTECT long factual parenthesis notes
+        # -------------------------------------------------
+        if len(inner.split()) >= 3:
+            key = f"__PAREN_{counter}__"
+            protected[key] = value
+            counter += 1
+            return key
+
+        # -------------------------------------------------
+        # default: leave visible
+        # -------------------------------------------------
+        return value
+
+    text = re.sub(r'\([^()]*\)', replacer, text)
     return text, protected
 
 
@@ -1467,7 +2105,9 @@ def restore_parentheses(text, protected):
         text = text.replace(key, val)
     return text
 
+
 def expand_abbreviations_safe(text: str, abbrev_dict: dict) -> str:
+    
     # Protect parenthesized content
     text, protected = protect_parentheses(text)
 
@@ -1476,11 +2116,91 @@ def expand_abbreviations_safe(text: str, abbrev_dict: dict) -> str:
         if len(abbr.strip()) <= 1:
             continue
 
+        candidates = contextual_abbreviations.get(abbr.upper())
         pattern = r'(?<!\w)' + re.escape(abbr) + r'(?!\w)'
-        text = re.sub(pattern, full, text, flags=re.IGNORECASE)
+
+        if candidates:
+            from typing import cast
+            candidates_list = cast(list[dict], candidates)
+
+            def replace_with_context(match):
+                context = get_context_window(text, match.start(), match.end())
+                return choose_best_abbreviation_expansion(context, candidates_list, match.group(0))
+
+            text = re.sub(pattern, replace_with_context, text, flags=re.IGNORECASE)
+        else:
+            text = re.sub(pattern, full, text, flags=re.IGNORECASE)
 
     # Restore parentheses
     text = restore_parentheses(text, protected)
+
+    # Second pass: expand abbreviations that are present only in the
+    # contextual_abbreviations dictionary (e.g. `SC`, `ST`, `IPC`) so they
+    # are resolved using surrounding context when not present in
+    # `abbrev_dict`.
+    def expand_contextual_abbreviations(text_in: str) -> str:
+        # Collect all matches on the original text first to avoid cascading
+        # replacements (e.g. replacing `SC` then `ST` which creates new tokens).
+        original = text_in
+        replacements = []  # list of (start, end, replacement)
+
+        # First, handle multi-part abbreviations like SC/ST before tokenizing
+        # Sort by length descending to match longer patterns first
+        multi_part_abbrevs = [abbr for abbr in contextual_abbreviations.keys() if '/' in abbr]
+        for abbr in sorted(multi_part_abbrevs, key=len, reverse=True):
+            candidates = contextual_abbreviations.get(abbr, [])
+            if not candidates:
+                continue
+            pattern = r'(?<!\w)' + re.escape(abbr) + r'(?!\w)'
+            for match in re.finditer(pattern, text_in, re.IGNORECASE):
+                context = get_context_window(text_in, match.start(), match.end())
+                rep = choose_best_abbreviation_expansion(context, candidates, match.group(0))
+                replacements.append((match.start(), match.end(), rep))
+
+        if not replacements:
+            return text_in
+
+        # Apply replacements from right->left so indices don't shift.
+        replacements.sort(key=lambda x: x[0], reverse=True)
+        out = list(text_in)
+        for start, end, rep in replacements:
+            out[start:end] = rep
+        text_in = ''.join(out)
+
+        # Then tokenize remaining text for single-token abbreviations
+        original = text_in
+        replacements = []
+        parts = re.split(r'(\W+)', original)
+        pos = 0
+        for part in parts:
+            if not part:
+                continue
+            if re.fullmatch(r'\W+', part):
+                pos += len(part)
+                continue
+            token = part
+            for abbr, candidates in contextual_abbreviations.items():
+                if not abbr or len(abbr.strip()) <= 1 or '/' in abbr:
+                    continue  # Skip multi-part abbreviations (already handled)
+                if token.lower() == abbr.lower():
+                    start = pos
+                    end = pos + len(part)
+                    context = get_context_window(original, start, end)
+                    rep = choose_best_abbreviation_expansion(context, candidates, part)
+                    replacements.append((start, end, rep))
+            pos += len(part)
+
+        if not replacements:
+            return text_in
+
+        # Apply replacements from right->left so indices don't shift.
+        replacements.sort(key=lambda x: x[0], reverse=True)
+        out = list(text_in)
+        for start, end, rep in replacements:
+            out[start:end] = rep
+        return ''.join(out)
+
+    text = expand_contextual_abbreviations(text)
     return text
 
     
@@ -1494,29 +2214,40 @@ def preprocess_text(text: str) -> str:
     text = text.strip()
     #lines = [re.sub(r'[^a-zA-Z0-9.,)\-(/?\t ]', '', l) for l in text.splitlines()] remove the legal structure of document
     # KEEP legal punctuation
-    lines = [re.sub(r'[^\w\s\.,:\-()/]', '', l)
+    lines = [re.sub(r'[^\w\s\.,:\-()/\'@#]', '', l)
     for l in text.splitlines()  
     ]
-    lines = [re.sub(r'(?<=[^0-9])/(?=[^0-9])', ' ', l) for l in lines]
+    
+    #lines = [re.sub(r'(?<=[^0-9])/(?=[^0-9])', ' ', l) for l in lines]
     lines = [re.sub(r"\t+", " ", l) for l in lines]
     lines = [re.sub(r" +", " ", l) for l in lines]
     lines = [re.sub(r"\.{2,}", "", l) for l in lines]
     lines = [re.sub(r"^ ?", "", l) for l in lines]
     lines = [l for l in lines if (len(l) != 1 and not re.fullmatch(r"(\d|\d\d|\d\d\d)", l))]
+    lines = [l for l in lines if not re.fullmatch(r'\d+\s+.+', l.strip())]
+    
 
     # Remove lines referencing Indian Kanoon (user-specific)
     lines = [l for l in lines if not re.search(r"Indian Kanoon", l, re.I)]
-
+    
+    lines = [l for l in lines if not re.search(r"CRIMINAL APPEAL @", l, re.I)]
     text = "\n".join(lines)
     #text = re.sub(r"[()\[\]\"]", " ", text)
-    text = re.sub(r" no\.", " number", text)
+    # Preserve legal case number patterns like "NO. 1234" or "No. 1234"
+    # Only replace "no." when followed by a letter (like "no.d")
+   
+    text = re.sub(r" nos\.", " numbers", text)
+    
     text = re.sub(r" nos\.", " numbers", text)
     text = re.sub(r" co\.", " company", text)
     text = re.sub(r" ltd\.", " limited", text)
     text = re.sub(r'\bS\.\s*(\d+)', r'Section \1', text)
-    text = re.sub(r'\bs\.\s*(\d+)', r'Section \1', text)
     text = re.sub(r'\bSec\.\s*(\d+)', r'Section \1', text)
-    text = re.sub(r'\bsec\.\s*(\d+)', r'Section \1', text)
+    text = re.sub(r'(?<!SC)/(?!ST)', ' ', text)
+    text = re.sub(r'Page\s+\d+\s+of\s+\d+', '', text, flags=re.I)
+    text = re.sub(r'J\s*U\s*D\s*G\s*M\s*E\s*N\s*T', 'JUDGMENT', text, flags=re.I)
+    text = re.sub(r'O\s*R\s*D\s*E\s*R', 'ORDER', text, flags=re.I)
+    
 
     # Protect names like "Abhay S. Oka"
     text = re.sub(
@@ -1526,11 +2257,24 @@ def preprocess_text(text: str) -> str:
     )
 
     # Correct legal expansion
-    text = re.sub(r'\bS\.\s*(\d+)', r'Section \1', text)
+    
 
     # Normalize party labels
     text = re.sub(r'APPELLANT\(S\)', 'APPELLANTS', text, flags=re.I)
+    text = re.sub(r'APPELLANT \(S\)', 'APPELLANTS', text, flags=re.I)
     text = re.sub(r'RESPONDENT\(S\)', 'RESPONDENTS', text, flags=re.I)
+    text = re.sub(r'Respondent \(s\)', 'RESPONDENTS', text, flags=re.I)
+    text = re.sub(r'PETITIONER\(S\)', 'PETITIONERS', text, flags=re.I)
+    text = re.sub(r'CLAIMANT\(S\)', 'CLAIMANTS', text, flags=re.I)
+    #text = re.sub(r'\bC\s*R\s*L\.?\b', 'CRL', text, flags=re.I)
+    text = re.sub(r'\bS\s*\.?\s*L\s*\.?\s*P\.?\b', 'SLP', text, flags=re.I)
+    text = re.sub(r'Page\s+\d+\s+of\s+\d+', '', text, flags=re.I)
+    text = re.sub(
+    r'\bSpl\.\s*SC\s*No\.?\s*(\d+)\s*of\s*(\d{4})',
+    r'Special Case Number \1 of \2',
+    text,
+    flags=re.I
+)  
 
     # Restore names
     text = text.replace('__MID__', 'S.')
@@ -1659,7 +2403,7 @@ def load_summarizer_model(repo_id: str = "facebook/bart-large-cnn"):
             return results[0] if single else results
 
         return _summarizer
-
+ 
 @st.cache_data(show_spinner=False)
 def load_label_mapping_from_json(url: str):
     resp = requests.get(url)
@@ -1734,7 +2478,7 @@ def _keywords_from_sentences(sentences, top_k: int = 4):
 def extract_topics(topic_text: str, max_topics: int = 5):
     """
     Topic extraction for legal summaries:
-    sentences -> MiniLM embeddings -> HDBSCAN/DBSCAN clustering -> top keywords per cluster.
+    sentences -> MiniLM embeddings -> BERTopic clustering -> top keywords per cluster.
     """
     if not topic_text or not topic_text.strip():
         return []
@@ -1752,19 +2496,37 @@ def extract_topics(topic_text: str, max_topics: int = 5):
     except Exception:
         return _keywords_from_sentences(sentences, top_k=min(max_topics, 4))
 
+    # Try BERTopic first, fallback to HDBSCAN/DBSCAN if unavailable
     cluster_labels = None
     try:
+        from bertopic import BERTopic
         import hdbscan
-        min_cluster_size = max(2, min(8, len(sentences) // 5))
-        clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=1)
-        cluster_labels = clusterer.fit_predict(embeddings)
+
+        # Configure BERTopic with stronger clustering
+        hdbscan_clusterer = hdbscan.HDBSCAN(min_cluster_size=max(2, min(8, len(sentences) // 5)), min_samples=1)
+        topic_model = BERTopic(
+            embedding_model=embedder,
+            hdbscan_model=hdbscan_clusterer,
+            top_n_words=3,
+            verbose=False,
+            calculate_probabilities=False
+        )
+        topics, probs = topic_model.fit_transform(sentences, embeddings)
+        cluster_labels = np.array(topics)
     except Exception:
+        # Fallback to HDBSCAN/DBSCAN if BERTopic fails
         try:
-            # Fallback when hdbscan is not installed.
-            clusterer = DBSCAN(eps=0.65, min_samples=2, metric="euclidean")
+            import hdbscan
+            min_cluster_size = max(2, min(8, len(sentences) // 5))
+            clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=1)
             cluster_labels = clusterer.fit_predict(embeddings)
         except Exception:
-            return _keywords_from_sentences(sentences, top_k=min(max_topics, 4))
+            try:
+                from sklearn.cluster import DBSCAN
+                clusterer = DBSCAN(eps=0.65, min_samples=2, metric="euclidean")
+                cluster_labels = clusterer.fit_predict(embeddings)
+            except Exception:
+                return _keywords_from_sentences(sentences, top_k=min(max_topics, 4))
 
     clusters = {}
     for sent, lbl in zip(sentences, cluster_labels):
@@ -2076,7 +2838,7 @@ with col1:
     st.text_area("Extracted", value=raw_text, height=300)
 
 # Preprocess
-preprocess_button = st.button("Refine text")
+preprocess_button = st.button("Preprocess text")
 if preprocess_button:
     cleaned_text = preprocess_text(raw_text)
     cleaned_text = expand_abbreviations_safe(cleaned_text, abbreviations_dict)
@@ -2091,8 +2853,8 @@ else:
     cleaned_text = st.session_state.get('cleaned_text', '')
 
 with col2:
-    st.subheader("Refined text")
-    st.text_area("Refined", value=cleaned_text, height=300)
+    st.subheader("Preprocessed text")
+    st.text_area("Preprocessed", value=cleaned_text, height=300)
 
 found_abbreviations = find_abbreviations(raw_text, abbreviations_dict)
 # Abbreviations 
@@ -2154,7 +2916,7 @@ preamble_text = extract_preamble_block(raw_text)
 #remaining_text = raw_text.replace(preamble_text, "")
 
 # Run labeling & summarization
-if st.button("Rhetorical Role Label"):
+if st.button("Label & Summarize"):
     st.session_state["role_summaries"] = {}
     st.session_state["case_topics"] = []
     st.session_state["statutes_discussed"] = []
@@ -2341,4 +3103,3 @@ if st.button("Generate Overall Summary"):
 st.markdown("---")
 #st.caption("Built from the user's Tkinter app — adapted for Streamlit. Models can be large; running locally with a GPU is recommended.")
 st.caption("Built for the Supreme Court of India Judgements dataset. Models can be large; running locally with a GPU is recommended.")
-
