@@ -176,7 +176,7 @@ abbreviations_dict = {
 "b.o.a.": "board of appeals",
 "b.p.f.": "bodoland people's front",
 "b.s.n.l.": "bharat sanchar nigam limited",
-"b.s.p.": "bahujan samaj party",
+#"b.s.p.": "bahujan samaj party",
 "b/o": "behalf of, on behalf of",
 "bac": "business advisory committee",
 "bai": "bar association of india",
@@ -308,7 +308,6 @@ abbreviations_dict = {
 "cls.": "clauses",
 "cneg": "contributory negligence",
 "co": "constitution order",
-
 "co.": "company",
 "cod": "criminal offenses and defenses",
 "cofeposa": "conservation of foreign exchange and prevention of smuggling act",
@@ -767,12 +766,12 @@ abbreviations_dict = {
 "m.o.a.": "memorandum of association",
 "m.o.j.": "ministry of justice",
 "m.o.u.": "memorandum of understanding",
-"m.p.": "member of parliament",
-"m.p.": "miscellaneous petition",
+#"m.p.": "member of parliament",
+#"m.p.": "miscellaneous petition",
 "m.p.c": "model penal code",
 "m.p.l.a.d.s.": "member of parliament local area development scheme",
-"m.p.p.": "manipur people's party",
-"m.r.c.a.": "malaysian rubber board",
+#"m.p.p.": "manipur people's party",
+#"m.r.c.a.": "malaysian rubber board",
 "m.r.t.p." :"monopolies and restrictive trade practices",
 "m.r.t.p.c.": "monopoly & restrictive trade practices commission",
 "m.t.n.l.": "mahanagar telephone nigam limited",
@@ -877,7 +876,7 @@ abbreviations_dict = {
 "nri": "non-resident indian",
 "nsg": "national security guard",
 "nwrc": "national water resources council",
-"o": "on behalf of",
+#"o": "on behalf of",
 "o&m": "operation and maintenance",
 "o&m.": "operation and maintenance",
 "o.&m.": "organisation and management",
@@ -910,7 +909,7 @@ abbreviations_dict = {
 "ors.": 'others',
 "osha": "occupational safety and health administration",
 "p&l": "profit and loss statement",
-#"p.": "page",
+"p.": "page",
 "p.&l.": "profit and loss statement",
 "p.a.": "power of attorney",
 "p.a.c.": "committee on public accounts",
@@ -940,7 +939,7 @@ abbreviations_dict = {
 "p.p.s.": "private parliamentary secretary",
 "p.r.s.": "panchayat raj system",
 "p.r.t.": "para-rubber tree",
-"p.s.p.": "praja socialist party",
+#"p.s.p.": "praja socialist party",
 "p.s.u.": "public sector undertaking",
 "p.t.i.": "press trust of india",
 "p.t.o.": "patent and trademark office",
@@ -1033,7 +1032,7 @@ abbreviations_dict = {
 "r.s. b.n. (i)/(ii)": "rajya sabha bulletin part i/ii",
 "r.s. d.e.b.": "rajya sabha debates",
 #"r.s.": "rajya sabhaaaaaaaa",
-"r.s.p.": "revolutionary socialist party",
+#"r.s.p.": "revolutionary socialist party",
 "r.t.":"referred trial",
 "r.t.i.": "right to information",
 "rbi": "reserve bank of india",
@@ -1105,7 +1104,7 @@ abbreviations_dict = {
 "s.o.": "stand over",
 "s.o.p.o.": "sexual offences prevention order",
 "s.o.x.": "sarbanes-oxley act",
-"s.p.": "samajwadi party",
+#"s.p.": "samajwadi party",
 "s.r.": "short recidivism",
 "s.r.a.": "solicitors regulation authority",
 "s.r.o.": "sub-registrar office",
@@ -1266,7 +1265,7 @@ abbreviations_dict = {
 "vol.": "volume",
 "vols.": "volumes",
 "vs": "versus",
-"vs.": "verses",
+"vs.": "versus",
 "vvpaa": "victims' rights and victim protection act",
 "vvpat": "voter verifiable paper audit trail",
 "w.a.": "writ appeal",
@@ -1481,9 +1480,11 @@ abbreviations_dict = {
 "ra": "review application",
 "r.a.": "review application",
 "ma": "miscellaneous application",
-"m.a.": "miscellaneous application",
+# Skip "m.a." - may be Master of Arts (academic degree) not miscellaneous application
 "ta": "transfer application",
 "t.a.": "transfer application",
+
+
 
 "fao": "first appeal from order",
 "fao.": "first appeal from order",
@@ -1595,7 +1596,9 @@ abbreviations_dict = {
 "suppl": "supplementary",
 "corrig.": "corrigendum",
 "sct": "Service Cases Today",
-"SERVING/SERVLR": "Service Law Reporter (Reports cases related to government service and employment)"
+"SERVING/SERVLR": "Service Law Reporter (Reports cases related to government service and employment)",
+"regd": "registered",
+"regd.": "registered"
 }
 
 # --- Context-aware legal abbreviation resolution (100 ambiguous abbreviations) ---
@@ -2214,7 +2217,7 @@ def preprocess_text(text: str) -> str:
     text = text.strip()
     #lines = [re.sub(r'[^a-zA-Z0-9.,)\-(/?\t ]', '', l) for l in text.splitlines()] remove the legal structure of document
     # KEEP legal punctuation
-    lines = [re.sub(r'[^\w\s\.,:\-()/\'@#]', '', l)
+    lines = [re.sub(r'[^\w\s\.,:\-()/\'@#&]', '', l)
     for l in text.splitlines()  
     ]
     
@@ -2332,15 +2335,24 @@ def preprocess_text(text: str) -> str:
 
 
 #***********************
+found = set()
+def find_all_abbreviations(text, abbreviations_dict, contextual_abbreviations):
+    found = {}
 
-def find_abbreviations(text, abbreviations_dict):
-    found = set()
-    for abbr in abbreviations_dict.keys():
-        pattern = r'(?<!\w)' + re.escape(abbr.lower()) + r'(?!\w)'
-        if re.search(pattern, text.lower()):
-            found.add(abbr)
-    return sorted(found)
+    # Static abbreviations
+    for abbr, meaning in abbreviations_dict.items():
+        pattern = r'(?<!\w)' + re.escape(abbr) + r'(?!\w)'
+        if re.search(pattern, text, re.I):
+            found[abbr.upper()] = meaning
 
+    # Contextual abbreviations
+    for abbr, meanings in contextual_abbreviations.items():
+        pattern = r'(?<!\w)' + re.escape(abbr) + r'(?!\w)'
+        if re.search(pattern, text, re.I):
+            if abbr.upper() not in found:
+                found[abbr.upper()] = "Contextual Meaning"
+
+    return found
 
 def extract_preamble_block(text: str) -> str:
     """
@@ -2650,12 +2662,14 @@ def extract_statutes(text: str, max_items: int = 12):
 
 def extract_party_judge_info(preamble_text: str) -> dict:
     info = {
+        
+        "court": "",
+        "date": "",
+        "bench": [],
         "petitioner": [],
         "respondent": [],
-        "bench": [],
-        "court": "",
         "authors": [],
-        "date": "",
+        
     }
     if not preamble_text or not preamble_text.strip():
         return info
@@ -2669,9 +2683,13 @@ def extract_party_judge_info(preamble_text: str) -> dict:
             info["court"] = re.sub(r"\s+", " ", ln).strip(" :-")
             break
 
-    # Parties from "A vs B"/"A v. B"
+    # Parties from "A vs B"/"A v. B"/"A & B" - use greedy matching to preserve full names
     for ln in lines[:80]:
-        m = re.search(r"^\s*(.+?)\s+(?:v(?:s\.?|\.))\s+(.+?)\s*$", ln, re.I)
+        # More robust pattern: capture everything before and after vs/v./&/and
+        m = re.search(r"^\s*(.+?)\s+(?:vs|v\.?|versus|&|and)\s+(.+?)\s+(?:on\s+\d+\s+\w+\s*,?\s*\d{4})?$", ln, re.I)
+        if not m:
+            # Try alternative pattern without date
+            m = re.search(r"^\s*(.+?)\s+(?:vs|v\.?|versus|&|and)\s+(.+)$", ln, re.I)
         if m:
             left = re.sub(r"\s+", " ", m.group(1)).strip(" ,.-")
             right = re.sub(r"\s+", " ", m.group(2)).strip(" ,.-")
@@ -2828,17 +2846,40 @@ with st.spinner('Loading label mapping...'):
 # Upload PDF
 uploaded_file = st.file_uploader("Upload a legal PDF", type=['pdf'])
 
+
+
 raw_text = ""
 if uploaded_file is not None:
     raw_text = extract_text_from_pdf_filelike(uploaded_file)     
 
+
+
+found_abbreviations = find_all_abbreviations(
+    raw_text,
+    abbreviations_dict,
+    contextual_abbreviations
+)
+
+if raw_text.strip():
+    st.subheader("📘 Abbreviations Detected")
+
+    if found_abbreviations:
+        items = list(found_abbreviations.items())
+
+        cols = st.columns(3)   # 3 columns
+
+        for i, (abbr, meaning) in enumerate(items):
+            with cols[i % 3]:
+                st.markdown(f"**{abbr}** → {meaning}")
+    else:
+        st.info("No abbreviations detected.")
 col1, col2 = st.columns([1, 1])
 with col1:
     st.subheader("Extracted text")
     st.text_area("Extracted", value=raw_text, height=300)
 
 # Preprocess
-preprocess_button = st.button("Refine Text")
+preprocess_button = st.button("Refine text")
 if preprocess_button:
     cleaned_text = preprocess_text(raw_text)
     cleaned_text = expand_abbreviations_safe(cleaned_text, abbreviations_dict)
@@ -2856,15 +2897,7 @@ with col2:
     st.subheader("Refined text")
     st.text_area("Refined", value=cleaned_text, height=300)
 
-found_abbreviations = find_abbreviations(raw_text, abbreviations_dict)
-# Abbreviations 
-if st.button("Show Abbreviations List"):
-    if found_abbreviations:
-        st.write("Abbreviations detected in judgment:")
-        for abbr in found_abbreviations:
-            st.write(f"• {abbr} → {abbreviations_dict.get(abbr, 'Unknown expansion')}")
-    else:
-        st.write("No abbreviations detected.")
+
 
 
 # Label selection
@@ -3089,7 +3122,7 @@ if st.button("Generate Overall Summary"):
     role_summaries = st.session_state.get("role_summaries", {})
 
     if not role_summaries:
-        st.warning("Please Click on the |Label Sentnces| button first")
+        st.warning("Please generate rhetorical summaries first.")
     else:
         overall_summary = generate_overall_summary(role_summaries)
         st.text_area(
