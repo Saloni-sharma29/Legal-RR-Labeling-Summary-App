@@ -38,8 +38,8 @@ import json
 from huggingface_hub import login
 
 # Page config must be the first Streamlit command
-st.set_page_config(page_title="Legal Rhetorical Role Labeling", layout='wide', initial_sidebar_state="collapsed")
-
+st.set_page_config(page_title="Legal Rhetorical Role Labeling", layout='wide', initial_sidebar_state="expanded")
+#st.set_page_config(page_title="Legal Rhetorical Role Labeling", layout='wide', initial_sidebar_state="collapsed")
 
 #torch.classes.__path__ = [] # add this line to manually set it to empty.
 
@@ -2215,6 +2215,15 @@ def preprocess_text(text: str) -> str:
     #text = re.sub(r"\xa0", " ", text)
     # Normalize
     text = text.strip()
+
+    # Remove PDF headnote content when present, keeping the judgment section
+    text = re.sub(
+        r'headnote:(.*?)(judgment:|judgement:)',
+        lambda m: m.group(2),
+        text,
+        flags=re.I | re.DOTALL,
+    )
+
     #lines = [re.sub(r'[^a-zA-Z0-9.,)\-(/?\t ]', '', l) for l in text.splitlines()] remove the legal structure of document
     # KEEP legal punctuation
     lines = [re.sub(r'[^\w\s\.,:\-()/\'@#&]', '', l)
@@ -2227,7 +2236,8 @@ def preprocess_text(text: str) -> str:
     lines = [re.sub(r"\.{2,}", "", l) for l in lines]
     lines = [re.sub(r"^ ?", "", l) for l in lines]
     lines = [l for l in lines if (len(l) != 1 and not re.fullmatch(r"(\d|\d\d|\d\d\d)", l))]
-    lines = [l for l in lines if not re.fullmatch(r'\d+\s+.+', l.strip())]
+    # Keep numbered legal lines like '1. Facts of the case' and '2 The appellant...'
+    #lines = [l for l in lines if not re.fullmatch(r'\d+\s+.+', l.strip())]
     
 
     # Remove lines referencing Indian Kanoon (user-specific)
@@ -2361,10 +2371,16 @@ def extract_preamble_block(text: str) -> str:
     lines = text.splitlines()
     preamble_lines = []
 
+    marker_re = re.compile(r'^(?:\s*(?:j\s*u\s*d\s*g\s*m\s*e\s*n\s*t|judgment|judgement|o\s*r\s*d\s*e\s*r|order)\b).*$', re.I)
+    found_marker = False
     for line in lines:
-        if re.search(r'^\s*(judgment|order|j u d g m e n t|o r d e r)\s*$', line, re.I):
+        if marker_re.match(line):
+            found_marker = True
             break
         preamble_lines.append(line)
+
+    if not found_marker:
+        return ""
 
     return "\n".join(preamble_lines).strip()
 
@@ -2821,18 +2837,179 @@ if "party_judge_info" not in st.session_state:
 
 # Sidebar
 st.sidebar.header("Settings")
-# Allow user to enter HF token (password field) — used for model downloads/auth
-hf_token_input = st.sidebar.text_input("Hugging Face token (optional)", type="password")
-if hf_token_input:
-    st.session_state['hf_token_ui'] = hf_token_input
-    st.sidebar.success("HF token set for this session (used only when loading models)")
-else:
-    # ensure key exists but is empty when user hasn't provided a token
-    st.session_state.setdefault('hf_token_ui', None)
+# Advanced settings in a collapsed expander
+with st.sidebar.expander("⚙️ Advanced Settings", expanded=False):
+    # Allow user to enter HF token (password field) — used for model downloads/auth
+    hf_token_input = st.text_input("Hugging Face token (optional)", type="password")
+    if hf_token_input:
+        st.session_state['hf_token_ui'] = hf_token_input
+        st.success("HF token set for this session (used only when loading models)")
+    else:
+        # ensure key exists but is empty when user hasn't provided a token
+        st.session_state.setdefault('hf_token_ui', None)
+    
+    st.markdown("---")
+    st.markdown("**Model Configuration**")
+    json_url_input = st.text_input("Label mapping JSON URL", value="https://storage.googleapis.com/indianlegalbert/OPEN_SOURCED_FILES/Rhetorical_Role_Benchmark/Data/train.json")
+    label_repo_input = st.text_input("Labeling model repo", value="engineersaloni159/LegalRo-BERt_for_rhetorical_role_labeling")
+    summarizer_repo_input = st.text_input("Summarizer model repo", value="facebook/bart-large-cnn")
 
-json_url = st.sidebar.text_input("Label mapping JSON URL", value="https://storage.googleapis.com/indianlegalbert/OPEN_SOURCED_FILES/Rhetorical_Role_Benchmark/Data/train.json")
-label_repo = st.sidebar.text_input("Labeling model repo", value="engineersaloni159/LegalRo-BERt_for_rhetorical_role_labeling")
-summarizer_repo = st.sidebar.text_input("Summarizer model repo", value="facebook/bart-large-cnn")
+# --- Legal Terms Glossary ---
+legal_glossary = {
+    # Parties in a case
+    "plaintiff": "The person or party who initiates a lawsuit by filing a complaint in court seeking legal remedy",
+    "petitioner": "The person who files a petition in court seeking relief or action from the court",
+    "respondent": "The party against whom a petition or appeal is filed, required to respond to the claims",
+    "appellant": "The party who appeals a court's decision to a higher court seeking review",
+    "defendant": "The person or party against whom a lawsuit is filed, accused of wrongdoing",
+    "accused": "A person charged with a criminal offense",
+    "complainant": "A person who files a formal complaint initiating legal proceedings",
+    "claimant": "A person who makes a claim or seeks relief in a court of law",
+    "intervener": "A person or party who intervenes in a case to protect their interest",
+    "prosecutor": "The legal representative who conducts the prosecution in a criminal case",
+    
+    # Legal documents & filings
+    "plaint": "A written document in which a plaintiff sets forth the claims and demands in a civil case",
+    "petition": "A formal written request to a court seeking judicial intervention or relief",
+    "memo": "A written statement submitted to the court presenting arguments",
+    "affidavit": "A written statement confirmed by oath or affirmation, used as evidence in court",
+    "counter affidavit": "A written response to an affidavit filed by the opposite party",
+    "written statement": "The defendant's written response to the plaintiff's claims",
+    "rejoinder": "The plaintiff's reply to the defendant's written statement",
+    "curative petition": "A petition filed to correct or review a judgment after exhausting regular remedies",
+    "writ petition:": "a formal written order issued by anybody, executive or judicial, authorised to do so",
+    
+    # Legal concepts & doctrines
+    "ratio decidendi": "The legal principle or reason that forms the binding basis of a court's judgment",
+    "obiter dictum": "Statements in a judgment that are not essential to the decision but may have persuasive value",
+    "res judicata": "The legal doctrine that a matter already judged by a court cannot be re-litigated",
+    "prima facie": "Evidence sufficient to establish a fact unless rebutted by the other party",
+    "locus standi": "The legal right or standing to appear before a court and seek relief",
+    "factum of adoption": "The written petition or document filed in court to seek legal approval for adoption",
+    "caveat": "A notice filed in court to prevent disposal of property or relief without notice to the filer",
+    "lis pendens": "A pending lawsuit that affects the title to property",
+    "estoppel": "A legal principle preventing a person from denying facts already established",
+    "adverse possession": "Hostile possession of property without the owner's permission",
+    "due process": "The legal requirement that fair procedures must be followed in legal proceedings",
+    "natural justice": "Fair and unbiased decision-making required in legal proceedings",
+    "parole evidence": "Oral evidence given during trial to explain or vary a written document",
+    "habeas corpus": "A writ requiring a person under arrest to be brought before a judge",
+    "certiorari": "A writ seeking judicial review of a lower court's decision",
+    "mandamus": "A writ commanding a public official to perform their duty",
+    "quo warranto": "A writ questioning the legal authority of a person to hold office",
+    
+    # Legal roles & positions
+    "advocate": "A legal professional authorized to represent clients in court (similar to lawyer/barrister)",
+    "senior counsel": "A senior advocate designated as Senior Counsel by the High Court or Supreme Court",
+    "amicus curiae": "A person or organization not party to a case who offers information to assist the court",
+    "arbitrator": "A neutral person appointed to resolve disputes outside court",
+    "mediator": "A neutral person who helps parties reach a mutually acceptable agreement",
+    
+    # Court terms
+    "bench": "The judge or judges hearing a case",
+    "division bench": "A bench of two judges hearing a case",
+    "single bench": "A single judge hearing a case",
+    "full bench": "A bench of three or more judges hearing a case",
+    "chief justice": "The head of a court system who administers the court's business",
+    "judge": "An official who presides over a court of law",
+    "magistrate": "A judicial officer with limited authority to hear cases",
+    "subordinate court": "Lower courts under the supervision of higher courts",
+    "appellate court": "A court that hears appeals from lower courts",
+    
+    # Case types & procedures
+    "civil appeal": "An appeal in a civil matter from a lower court to a higher court",
+    "criminal appeal": "An appeal in a criminal matter from a lower court to a higher court",
+    "special leave petition": "A petition seeking special permission to appeal against a court order",
+    "writ petition": "A petition filed under Article 32 (Supreme Court) or 226 (High Court) of Constitution",
+    "revision petition": "A petition seeking revision of a lower court's order",
+    "review petition": "A petition seeking review of a judgment on grounds of error",
+    "miscellaneous application": "An application for interim relief or procedural matters",
+    "execution petition": "A petition to enforce or execute a decree or order",
+    
+    # Legal acts & sections
+    "section": "A specific provision of a legislative act",
+    "article": "A specific provision of the Constitution",
+    "schedule": "A list appended to an act containing supplementary provisions",
+    "clause": "A subdivision of a section in a legal document",
+    "proviso": "A condition or qualification attached to a legal provision",
+    "explanation": "A statement clarifying the meaning of a legal provision",
+    
+    # Procedural terms
+    "interim order": "A temporary order passed during the pendency of a case",
+    "final order": "A conclusive order deciding the matter finally",
+    "ex parte order": "An order passed without hearing the opposite party",
+    "ad interim": "Temporary order passed until further orders",
+    "maintainability": "Whether a petition is legally acceptable for hearing",
+    "limitation": "The time period within which a legal action must be filed",
+    "cause title": "The title of a case showing the parties (Petitioner vs Respondent)",
+    "memo of parties": "A document showing the names and details of parties to a case",
+    
+    # Evidence terms
+    "exhibit": "A document or object produced in court as evidence",
+    "material evidence": "Important evidence that influences the decision",
+    "circumstantial evidence": "Evidence from which conclusions can be drawn indirectly",
+    "direct evidence": "Evidence that directly proves a fact without inference",
+    "hearsay evidence": "Second-hand evidence not from direct witness",
+    "expert evidence": "Opinion evidence from a person with specialized knowledge",
+    
+    # Judgment terms
+    "judgment": "The official decision of a court on a matter",
+    "decree": "The formal expression of a court's decision in a civil case",
+    "order": "A direction issued by a court during proceedings",
+    "verdict": "The decision of a jury or judge on the matters submitted",
+    "observation": "Comments made by a judge that are not part of the binding judgment",
+    "finding": "The court's determination of facts based on evidence",
+    
+    # Relief & remedies
+    "injunction": "A court order prohibiting a person from doing something",
+    "declaration": "A court order determining the rights of parties without awarding damages",
+    "restitution": "Restoration of something to its rightful owner or original state",
+    "compensation": "Money awarded to make up for loss or injury",
+    "damages": "Monetary award to compensate for loss or injury",
+    "specific performance": "Court order requiring a party to perform their contractual obligations",
+    "permanent injunction": "A final injunction lasting indefinitely",
+    "temporary injunction": "A provisional injunction until final hearing",
+    
+    # Other common terms
+    "in camera": "Proceedings held in private/closed court",
+    "verbatim": "Word for word record of proceedings",
+    "certified copy": "Official copy of a document authenticated by the court",
+    "judicial discretion": "The power of a judge to make decisions based on fairness",
+    "binding precedent": "A legal principle that must be followed in similar cases",
+    "persuasive precedent": "A legal principle from other jurisdictions that may be followed",
+    "doctrine of separation": "The constitutional principle dividing powers between legislature, executive, and judiciary",
+    "rule of law": "The principle that everyone is subject to the law",
+}
+
+# --- Sidebar Glossary Panel for Legal Terms ---
+with st.sidebar.expander("📚 Legal Glossary (Common Legal Terms)", expanded=True):
+    st.markdown("## 📚 Legal Glossary (Common Legal Terms)")
+    st.markdown("_Browse or search for legal terms to understand their meaning while reading the summary._")
+    glossary_search = st.text_input("Search legal glossary", key="sidebar_legal_glossary_search")
+    # Get terms from uploaded text
+    raw_text = st.session_state.get('raw_text', '')
+    terms_in_text = set()
+    for term in legal_glossary.keys():
+        if re.search(r'\b' + re.escape(term) + r'\b', raw_text, re.I):
+            terms_in_text.add(term.lower())
+    base_filtered = {k: v for k, v in legal_glossary.items() if k.lower() in terms_in_text}
+    # Apply search filter
+    if glossary_search:
+        filtered_terms = {k: v for k, v in base_filtered.items() if glossary_search.lower() in k.lower() or glossary_search.lower() in v.lower()}
+    else:
+        filtered_terms = base_filtered
+    if filtered_terms:
+        for term, definition in sorted(filtered_terms.items()):
+            st.markdown(f"**{term}**: {definition}")
+    else:
+        st.info("No matching terms found.")
+
+
+
+# Use inputs from advanced settings or defaults
+json_url = json_url_input
+label_repo = label_repo_input
+summarizer_repo = summarizer_repo_input
 
 # Load label mapping
 with st.spinner('Loading label mapping...'):
@@ -2850,7 +3027,8 @@ uploaded_file = st.file_uploader("Upload a legal PDF", type=['pdf'])
 
 raw_text = ""
 if uploaded_file is not None:
-    raw_text = extract_text_from_pdf_filelike(uploaded_file)     
+    raw_text = extract_text_from_pdf_filelike(uploaded_file)
+    st.session_state['raw_text'] = raw_text     
 
 
 
@@ -2967,7 +3145,18 @@ if st.button("Label Sentences"):
         st.session_state["role_summaries"]["PREAMBLE"] = preamble_text
 
         # 🔹 Remove PREAMBLE from body before ML
-        body_text = raw_text.replace(preamble_text, "").strip()
+        if preamble_text:
+            idx = raw_text.find(preamble_text)
+            if idx != -1:
+                body_text = raw_text[idx + len(preamble_text):].strip()
+            else:
+                body_text = raw_text.strip()
+        else:
+            body_text = raw_text.strip()
+
+        # If no judgment/order marker is found, keep the full text as body.
+        if not body_text:
+            body_text = raw_text.strip()
 
         # 🔹 Preprocess only BODY
         cleaned_body = preprocess_text(body_text)
@@ -3052,23 +3241,7 @@ if st.button("Label Sentences"):
 
             prog.progress(100)
             st.success('Done')
-
-            topics = st.session_state.get("case_topics", [])
-            if topics:
-                st.markdown("### 🧭 Case Topics")
-                for topic in topics:
-                    st.markdown(f"• {topic}")
-            statutes = st.session_state.get("statutes_discussed", [])
-            if statutes:
-                st.markdown("### ⚖️ Statutes Discussed")
-                for statute in statutes:
-                    st.markdown(f"• {statute}")
-            else:
-                st.info("No statute/section patterns matched in the extracted judgment text.")
-            party_judge_info = st.session_state.get("party_judge_info", {})
-            if party_judge_info:
-                render_party_judge_info(party_judge_info)
-
+            st.session_state['show_sections'] = True
 
 
 def generate_overall_summary(role_summaries: dict) -> str:
@@ -3100,23 +3273,27 @@ def generate_overall_summary(role_summaries: dict) -> str:
     return "\n\n".join(summary_parts)
 
 st.markdown("---")
-st.subheader("Overall Judgment Summary")
+st.subheader("📁 Key Information")
 
-existing_topics = st.session_state.get("case_topics", [])
-if existing_topics:
-    st.markdown("### 🧭 Case Topics")
-    for topic in existing_topics:
-        st.markdown(f"• {topic}")
+if st.session_state.get('show_sections', False):
+    existing_topics = st.session_state.get("case_topics", [])
+    existing_statutes = st.session_state.get("statutes_discussed", [])
 
-existing_statutes = st.session_state.get("statutes_discussed", [])
-if existing_statutes:
-    st.markdown("### ⚖️ Statutes Discussed")
-    for statute in existing_statutes:
-        st.markdown(f"• {statute}")
-
-existing_party_judge_info = st.session_state.get("party_judge_info", {})
-if existing_party_judge_info:
-    render_party_judge_info(existing_party_judge_info)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        existing_party_judge_info = st.session_state.get("party_judge_info", {})
+        if existing_party_judge_info:
+            render_party_judge_info(existing_party_judge_info)
+    with col2:
+        if existing_statutes:
+            st.markdown("### ⚖️ Statutes Discussed")
+            for statute in existing_statutes:
+                st.markdown(f"• {statute}")
+    with col3:
+        if existing_topics:
+            st.markdown("### 🧭 Case Topics")
+            for topic in existing_topics:
+                st.markdown(f"• {topic}")
 
 if st.button("Generate Overall Summary"):
     role_summaries = st.session_state.get("role_summaries", {})
@@ -3131,6 +3308,7 @@ if st.button("Generate Overall Summary"):
             height=400
         )
         st.success('Done')
+        st.session_state['show_sections'] = False
 
 
 st.markdown("---")
