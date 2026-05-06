@@ -2857,128 +2857,462 @@ with st.sidebar.expander("⚙️ Advanced Settings", expanded=False):
 # --- Legal Terms Glossary ---
 legal_glossary = {
     # Parties in a case
-    "plaintiff": "The person or party who initiates a lawsuit by filing a complaint in court seeking legal remedy",
-    "petitioner": "The person who files a petition in court seeking relief or action from the court",
-    "respondent": "The party against whom a petition or appeal is filed, required to respond to the claims",
-    "appellant": "The party who appeals a court's decision to a higher court seeking review",
-    "defendant": "The person or party against whom a lawsuit is filed, accused of wrongdoing",
-    "accused": "A person charged with a criminal offense",
-    "complainant": "A person who files a formal complaint initiating legal proceedings",
-    "claimant": "A person who makes a claim or seeks relief in a court of law",
-    "intervener": "A person or party who intervenes in a case to protect their interest",
-    "prosecutor": "The legal representative who conducts the prosecution in a criminal case",
-    
+    "Plaintiff": "The person or party who initiates a lawsuit by filing a complaint in court seeking legal remedy",
+    "Petitioner": "The person who files a petition in court seeking relief or action from the court",
+    "Respondent": "The party against whom a petition or appeal is filed, required to respond to the claims",
+    #"Appellant": "The party who appeals a court's decision to a higher court seeking review",
+    "Defendant": "The person or party against whom a lawsuit is filed, accused of wrongdoing",
+    "Accused": "A person charged with a criminal offense",
+    "Complainant": "A person who files a formal complaint initiating legal proceedings",
+    "Claimant": "A person who makes a claim or seeks relief in a court of law",
+    "Intervener": "A person or party who intervenes in a case to protect their interest",
+    "Prosecutor": "The legal representative who conducts the prosecution in a criminal case",
+
     # Legal documents & filings
-    "plaint": "A written document in which a plaintiff sets forth the claims and demands in a civil case",
-    "petition": "A formal written request to a court seeking judicial intervention or relief",
-    "memo": "A written statement submitted to the court presenting arguments",
-    "affidavit": "A written statement confirmed by oath or affirmation, used as evidence in court",
-    "counter affidavit": "A written response to an affidavit filed by the opposite party",
-    "written statement": "The defendant's written response to the plaintiff's claims",
-    "rejoinder": "The plaintiff's reply to the defendant's written statement",
-    "curative petition": "A petition filed to correct or review a judgment after exhausting regular remedies",
-    "writ petition:": "a formal written order issued by anybody, executive or judicial, authorised to do so",
+    "Plaint": "A written document in which a plaintiff sets forth the claims and demands in a civil case",
+    #"petition": "A formal written request to a court seeking judicial intervention or relief",
+    "Memo": "A written statement submitted to the court presenting arguments",
+    "Affidavit": "A written statement confirmed by oath or affirmation, used as evidence in court",
+    "Counter Affidavit": "A written response to an affidavit filed by the opposite party",
+    "Written Statement": "The defendant's written response to the plaintiff's claims",
+    "Rejoinder": "The plaintiff's reply to the defendant's written statement",
+    "Curative Petition": "A petition filed to correct or review a judgment after exhausting regular remedies",
+    "Writ Petition": "a formal written order issued by anybody, executive or judicial, authorised to do so",
     
     # Legal concepts & doctrines
-    "ratio decidendi": "The legal principle or reason that forms the binding basis of a court's judgment",
-    "obiter dictum": "Statements in a judgment that are not essential to the decision but may have persuasive value",
-    "res judicata": "The legal doctrine that a matter already judged by a court cannot be re-litigated",
-    "prima facie": "Evidence sufficient to establish a fact unless rebutted by the other party",
-    "locus standi": "The legal right or standing to appear before a court and seek relief",
-    "factum of adoption": "The written petition or document filed in court to seek legal approval for adoption",
-    "caveat": "A notice filed in court to prevent disposal of property or relief without notice to the filer",
-    "lis pendens": "A pending lawsuit that affects the title to property",
-    "estoppel": "A legal principle preventing a person from denying facts already established",
-    "adverse possession": "Hostile possession of property without the owner's permission",
-    "due process": "The legal requirement that fair procedures must be followed in legal proceedings",
-    "natural justice": "Fair and unbiased decision-making required in legal proceedings",
-    "parole evidence": "Oral evidence given during trial to explain or vary a written document",
-    "habeas corpus": "A writ requiring a person under arrest to be brought before a judge",
-    "certiorari": "A writ seeking judicial review of a lower court's decision",
-    "mandamus": "A writ commanding a public official to perform their duty",
-    "quo warranto": "A writ questioning the legal authority of a person to hold office",
+    "Ratio decidendi": "The legal principle or reason that forms the binding basis of a court's judgment",
+    "Obiter dictum": "Statements in a judgment that are not essential to the decision but may have persuasive value",
+    "Res judicata": "The legal doctrine that a matter already judged by a court cannot be re-litigated",
+    "Prima facie": "Evidence sufficient to establish a fact unless rebutted by the other party",
+    "Locus standi": "The legal right or standing to appear before a court and seek relief",
+    "Factum of adoption": "The written petition or document filed in court to seek legal approval for adoption",
+    "Caveat": "A notice filed in court to prevent disposal of property or relief without notice to the filer",
+    "Lis pendens": "A pending lawsuit that affects the title to property",
+    "Estoppel": "A legal principle preventing a person from denying facts already established",
+    "Adverse possession": "Hostile possession of property without the owner's permission",
+    "Due process": "The legal requirement that fair procedures must be followed in legal proceedings",
+    "Natural justice": "Fair and unbiased decision-making required in legal proceedings",
+    "Parole evidence": "Oral evidence given during trial to explain or vary a written document",
+    "Habeas corpus": "A writ requiring a person under arrest to be brought before a judge",
+    "Certiorari": "A writ seeking judicial review of a lower court's decision",
+    "Mandamus": "A writ commanding a public official to perform their duty",
+    "Quo warranto": "A writ questioning the legal authority of a person to hold office",
     
     # Legal roles & positions
-    "advocate": "A legal professional authorized to represent clients in court (similar to lawyer/barrister)",
-    "senior counsel": "A senior advocate designated as Senior Counsel by the High Court or Supreme Court",
-    "amicus curiae": "A person or organization not party to a case who offers information to assist the court",
-    "arbitrator": "A neutral person appointed to resolve disputes outside court",
-    "mediator": "A neutral person who helps parties reach a mutually acceptable agreement",
+    "Advocate": "A legal professional authorized to represent clients in court (similar to lawyer/barrister)",
+    "Senior counsel": "A senior advocate designated as Senior Counsel by the High Court or Supreme Court",
+    "Amicus curiae": "A person or organization not party to a case who offers information to assist the court",
+    "Arbitrator": "A neutral person appointed to resolve disputes outside court",
+    "Mediator": "A neutral person who helps parties reach a mutually acceptable agreement",
     
     # Court terms
-    "bench": "The judge or judges hearing a case",
-    "division bench": "A bench of two judges hearing a case",
-    "single bench": "A single judge hearing a case",
-    "full bench": "A bench of three or more judges hearing a case",
-    "chief justice": "The head of a court system who administers the court's business",
-    "judge": "An official who presides over a court of law",
-    "magistrate": "A judicial officer with limited authority to hear cases",
-    "subordinate court": "Lower courts under the supervision of higher courts",
-    "appellate court": "A court that hears appeals from lower courts",
+    "Bench": "The judge or judges hearing a case",
+    "Division bench": "A bench of two judges hearing a case",
+    "Single bench": "A single judge hearing a case",
+    "Full bench": "A bench of three or more judges hearing a case",
+    "Chief justice": "The head of a court system who administers the court's business",
+    #"judge": "An official who presides over a court of law",
+    "Magistrate": "A judicial officer with limited authority to hear cases",
+    "Subordinate court": "Lower courts under the supervision of higher courts",
+    "Appellate court": "A court that hears appeals from lower courts",
     
     # Case types & procedures
-    "civil appeal": "An appeal in a civil matter from a lower court to a higher court",
-    "criminal appeal": "An appeal in a criminal matter from a lower court to a higher court",
-    "special leave petition": "A petition seeking special permission to appeal against a court order",
-    "writ petition": "A petition filed under Article 32 (Supreme Court) or 226 (High Court) of Constitution",
-    "revision petition": "A petition seeking revision of a lower court's order",
-    "review petition": "A petition seeking review of a judgment on grounds of error",
-    "miscellaneous application": "An application for interim relief or procedural matters",
-    "execution petition": "A petition to enforce or execute a decree or order",
+    "Civil appeal": "An appeal in a civil matter from a lower court to a higher court",
+    "Criminal appeal": "An appeal in a criminal matter from a lower court to a higher court",
+    "Special leave petition": "A petition seeking special permission to appeal against a court order",
+    "Writ petition": "A petition filed under Article 32 (Supreme Court) or 226 (High Court) of Constitution",
+    "Revision petition": "A petition seeking revision of a lower court's order",
+    "Review petition": "A petition seeking review of a judgment on grounds of error",
+    "Miscellaneous application": "An application for interim relief or procedural matters",
+    "Execution petition": "A petition to enforce or execute a decree or order",
     
     # Legal acts & sections
-    "section": "A specific provision of a legislative act",
-    "article": "A specific provision of the Constitution",
-    "schedule": "A list appended to an act containing supplementary provisions",
-    "clause": "A subdivision of a section in a legal document",
-    "proviso": "A condition or qualification attached to a legal provision",
-    "explanation": "A statement clarifying the meaning of a legal provision",
+    "Section": "A specific provision of a legislative act",
+    "Article": "A specific provision of the Constitution",
+    "Schedule": "A list appended to an act containing supplementary provisions",
+    "Clause": "A subdivision of a section in a legal document",
+    "Proviso": "A condition or qualification attached to a legal provision",
+    "Explanation": "A statement clarifying the meaning of a legal provision",
     
     # Procedural terms
-    "interim order": "A temporary order passed during the pendency of a case",
-    "final order": "A conclusive order deciding the matter finally",
-    "ex parte order": "An order passed without hearing the opposite party",
-    "ad interim": "Temporary order passed until further orders",
-    "maintainability": "Whether a petition is legally acceptable for hearing",
-    "limitation": "The time period within which a legal action must be filed",
-    "cause title": "The title of a case showing the parties (Petitioner vs Respondent)",
-    "memo of parties": "A document showing the names and details of parties to a case",
+    "Interim order": "A temporary order passed during the pendency of a case",
+    "Final order": "A conclusive order deciding the matter finally",
+    "Ex parte order": "An order passed without hearing the opposite party",
+    "Ad interim": "Temporary order passed until further orders",
+    "Maintainability": "Whether a petition is legally acceptable for hearing",
+    "Limitation": "The time period within which a legal action must be filed",
+    "Cause title": "The title of a case showing the parties (Petitioner vs Respondent)",
+    "Memo of parties": "A document showing the names and details of parties to a case",
     
     # Evidence terms
-    "exhibit": "A document or object produced in court as evidence",
-    "material evidence": "Important evidence that influences the decision",
-    "circumstantial evidence": "Evidence from which conclusions can be drawn indirectly",
-    "direct evidence": "Evidence that directly proves a fact without inference",
-    "hearsay evidence": "Second-hand evidence not from direct witness",
-    "expert evidence": "Opinion evidence from a person with specialized knowledge",
+    "Exhibit": "A document or object produced in court as evidence",
+    "Material evidence": "Important evidence that influences the decision",
+    "Circumstantial evidence": "Evidence from which conclusions can be drawn indirectly",
+    "Direct evidence": "Evidence that directly proves a fact without inference",
+    "Hearsay evidence": "Second-hand evidence not from direct witness",
+    "Expert evidence": "Opinion evidence from a person with specialized knowledge",
     
     # Judgment terms
-    "judgment": "The official decision of a court on a matter",
-    "decree": "The formal expression of a court's decision in a civil case",
-    "order": "A direction issued by a court during proceedings",
-    "verdict": "The decision of a jury or judge on the matters submitted",
-    "observation": "Comments made by a judge that are not part of the binding judgment",
-    "finding": "The court's determination of facts based on evidence",
+    "Judgment": "The official decision of a court on a matter",
+    #"decree": "The formal expression of a court's decision in a civil case",
+    "Order": "A direction issued by a court during proceedings",
+    "Verdict": "The decision of a jury or judge on the matters submitted",
+    "Observation": "Comments made by a judge that are not part of the binding judgment",
+    "Finding": "The court's determination of facts based on evidence",
     
     # Relief & remedies
-    "injunction": "A court order prohibiting a person from doing something",
-    "declaration": "A court order determining the rights of parties without awarding damages",
-    "restitution": "Restoration of something to its rightful owner or original state",
-    "compensation": "Money awarded to make up for loss or injury",
-    "damages": "Monetary award to compensate for loss or injury",
-    "specific performance": "Court order requiring a party to perform their contractual obligations",
-    "permanent injunction": "A final injunction lasting indefinitely",
-    "temporary injunction": "A provisional injunction until final hearing",
+    "Injunction": "A court order prohibiting a person from doing something",
+    "Declaration": "A court order determining the rights of parties without awarding damages",
+    "Restitution": "Restoration of something to its rightful owner or original state",
+    "Compensation": "Money awarded to make up for loss or injury",
+    "Damages": "Monetary award to compensate for loss or injury",
+    "Specific performance": "Court order requiring a party to perform their contractual obligations",
+    "Permanent injunction": "A final injunction lasting indefinitely",
+    "Temporary injunction": "A provisional injunction until final hearing",
     
     # Other common terms
-    "in camera": "Proceedings held in private/closed court",
-    "verbatim": "Word for word record of proceedings",
-    "certified copy": "Official copy of a document authenticated by the court",
-    "judicial discretion": "The power of a judge to make decisions based on fairness",
-    "binding precedent": "A legal principle that must be followed in similar cases",
-    "persuasive precedent": "A legal principle from other jurisdictions that may be followed",
-    "doctrine of separation": "The constitutional principle dividing powers between legislature, executive, and judiciary",
-    "rule of law": "The principle that everyone is subject to the law",
+    "In camera": "Proceedings held in private/closed court",
+    "Verbatim": "Word for word record of proceedings",
+    "Certified copy": "Official copy of a document authenticated by the court",
+    "Judicial discretion": "The power of a judge to make decisions based on fairness",
+    "Binding precedent": "A legal principle that must be followed in similar cases",
+    "Persuasive precedent": "A legal principle from other jurisdictions that may be followed",
+    "Doctrine of separation": "The constitutional principle dividing powers between legislature, executive, and judiciary",
+    "Rule of law": "The principle that everyone is subject to the law",
+
+
+    "Accomplice": "A person who has taken part in or aided the commission of a crime",
+
+    "Accused person": "A person or persons accused of committing a crime but not yet tried for it",
+
+    "Acknowledgement": "It is a method to certify or declare one’s knowledge of some document. It is a statement of acceptance.",
+
+    "Acquaintance Rape": "When rape is being committed by a person known/related to the victim.",
+
+    "Acquittal": "A conclusion by a judge that the accused person/s are not guilty of the commission of the charged offence/s.",
+
+    "Actus Reus": "It is the unlawful, physical act that constitutes an essential element of a crime and which, in most cases, must be combined with mens rea (criminal intent) to prove that a crime has been committed.",
+
+    "Adjournment": "The postponement of a case hearing to a later date. Check the wiki page",
+
+    "Adjudication": "The legal process of deciding a dispute between two or more parties by a competent authority.",
+
+    "Admissible Evidence": "The evidence that a trial judge may consider based on the provisions of the Indian Evidence Act. All the evidence submitted by the parties to the court may not be admissible.",
+
+    "Admission": "The acceptance of document, fact, or statement by a party before the court.",
+
+    #"Advocate": "A law graduate entered in any roll under the provisions of the Advocates Act, 1961.",
+
+    #"Affidavit": "A document sworn by a party before a notary asserting that the contents of the document are made to the best of the signatory’s knowledge, information and belief. Pleadings filed in court cases usually need to be supported by affidavits. Check the wiki page",
+
+    "Appeal": "A process by which a litigant can approach a higher court/authority challenging the order or judgment of a lower court, tribunal or authority",
+
+    "Appearance": "A party showing up in court in response to summons or notice. A party can make an appearance either in person or through their lawyer, depending on the case. In criminal proceedings, the complainant and the accused needs to be personally present at every hearing, unless the Court exempts them.",
+
+    "Appellant": "A person who files an appeal i.e. applies to a higher court for a reconsideration of the decision made by a lower court.",
+
+    "Appellate (also see Jurisdiction)": "In a court, those applications that are concerned with decisions made by a lower court, tribunal or authority.",
+
+    "Arrears": "As per the 245th Law Commission report: Some delayed cases might be in the system for longer than the normal time, for valid reasons. Those cases that show unwarranted delay will be referred to as arrears. Check the wiki page",
+
+    "Arrest": "An arrest is an act of taking a person into custody as he/she may be suspected of a crime or an offence. It is done because a person is apprehended for doing something wrong. Check the wiki page",
+
+    "Arrest Warrant": "An order passed by a magistrate or judge authorising a law enforcement agency to arrest a person suspected of committing a crime.",
+
+    "Arson": "It is a voluntary act of burning a property or setting a property on fire.",
+
+    "Assault": "It is a threat or attempt to use criminal force on an individual. Actual physical contact is not required to prove assault.",
+
+    "Attachment": "An order seizing or attaching property/assets (including bank accounts) to satisfy the demands or claims made by a party. Courts may attach a debtor’s property to pay their creditors or to secure the creditors’ interests during the pendency of proceedings.",
+
+    "Backlog": "As per the 245th Law Commission report, when the institution of new cases in any given time period is higher than the disposal of cases in that time period, the difference between institution and disposal is the backlog. This figure represents the accumulation of cases in the system due to the system’s inability to dispose of as many cases as are being filed. Check the wiki page",
+
+    "Bail": "Bail is referred to as the temporary release of the accused person in a criminal case in which the trial has not started or the trial is going on and the court is yet to reach a decision. The court granting bail usually imposes conditions such as sureties, personal bond, participation in investigation, as conditions for release. Check the wiki page",   
+
+    "Beyond Reasonable Doubt": "It is the level of proof that is required to be proved to convict an accused person in a criminal case. In criminal cases, the prosecution bears the burden of proving that the accused person is guilty beyond all reasonable doubt. The judge needs to be convinced beyond reasonable doubt, based on their consideration of the evidence, that the accused is guilty of the crime charged in order to convict them. Check the wiki page",
+
+    "Burden of proof": "The burden of proof is the standard that the parties have to satisfy to prove a fact in court. In criminal cases, the burden of proving the accused person’s guilt is on the prosecution, and they must prove it beyond reasonable doubt.  In civil cases, the burden of proof is on the plaintiff and they have to prove their case by a preponderance of probabilities. This means that a fact is said to be proved when the court either believes it to exist or considers its existence so probable that a prudent man ought, under the circumstances of the particular case, to act upon the supposition that it exists (Narayan Ganesh Dastane v. Sucheta Narayan Dastane 1975 AIR 1534).",
+
+    "Capital punishment": "Capital punishment or the death penalty isthe punishment for a crime which involves takingthe convicted person’s life. In India capital punishment is awarded inthe rarest of rare cases. Checkthe wiki page",
+
+    "Case Number": "A unique identification number provided bythe court for each case, made up of three components: a case type, them said number, andthe year in whichthe case was instituted.",
+
+    "Case Status": "The stage at which a case is, within the process in the court.",
+
+    "Cause List": "A list issued by the registry of the matters to be heard by the court on any day. The bench, court hall number and the position of the matter are indicated on the cause list. This list appears in print form in every court, and is made available on the website of several courts. Check the wiki page",
+
+    "Cause of action": "A set of facts and circumstances sufficient for a party to initiate legal action against another party.",
+
+    "Charge sheet": "Charge sheet refers to a formal police record presented to the court showing the names of each person accused of the criminal offence/s, the nature of the accusations and the crimes, and the evidence. If the person accused of a crime is in prison, the police has to file a chargesheet in 60 days (where the punishment for the crime is less than 10 years) or 90 days (where the punishment of the crime is more than 10 years). Check the wiki page",
+
+    "Circumstantial Evidence": "Circumstantial evidence is indirect evidence that is not based on direct observation. On its face circumstantial evidence does not prove a fact in issue but gives rise to a logical inference that the fact exists. A person can be convicted on the basis of circumstantial evidence only if the circumstances taken cumulatively form a chain so complete that there is no escape from the conclusion that in all human probability, the crime was committed by them.",
+
+    "Civil Procedure Code": "Codified procedural law related to administration of Indian civil law.",
+
+    "Civil": "That part of the law that encompasses business, contracts, estates, domestic (family) relations, accidents, negligence, and everything related to legal issues, statutes, and lawsuits, that is not criminal law.",
+
+    "Commissions": "A commission is appointed by a court to ascertain or investigate facts needed to decide a case. A commission is usually given specific terms of reference. Members of a commission can be academics, social activists/workers, advocates, or judges.",
+
+    "Commutation": "The action of an executive officer to substitute a punishment given to a convicted person, with a less severe punishment. Under the Constitution, the President and Governor have the power to commute sentences.",
+
+    "Complaint": "Any allegation made orally or in writing to the police or a magistrate stating that a criminal offence has been committed, with a view to them taking action to investigate the alleged offence. Check the wiki page",
+
+    "Conviction": "It is a final adjudication of finding an accused person guilty of the commission of s crime by a Court.",
+
+    "Counterclaim": "A claim made by the defendant against the plaintiff in answer to the claim raised by the plaintiff.",
+
+    "Court Hall": "The room in which the judicial proceedings of the court are carried out. Court halls are usually described by the numbers assigned to them e.g. Courthall No. 3.",
+
+    "Court Notice/Summons": "An official document that a court sends to a party informing them that a case has been filed against them, and which indicates the date and time of the next hearing. Check the wiki page",
+
+    "Criminal Procedure Code": "The main legislation on procedure for administration of substantive criminal law in India.",
+
+    "Criminal": "That which pertains to crimes, and requires the administration of penal justice. Involving those cases that deal with a violation of a law in which a citizen inflicts injury upon another citizen or the state. Punishable with the curtailment of liberty, via imprisonment or detention, or fines.",
+
+    "Cross-examination": "The examination of witness by the opposite party shall be called a cross-examination. Cross-examination gives the opposing party an opportunity to point out the weaknesses of a witness’ testimony. The lawyer conducting the cross-examination cannot ask questions outside the scope of the witness’s prior direct examination. Check the wiki page",
+
+    "Culpable homicide not amounting to murder": "An act which has caused death done with the intention of causing death, or causing such bodily injury which is likely to cause death, or done by someone having the knowledge that they can, by their act, likely cause death, amounts to culpable homicide.",
+
+    "Date of Hearing": "The date on which a case is heard in court.",
+
+    "Date of Institution": "The date when a case is filed and registered in a court.",
+
+    "Decree Holder": "The person in favour of whom the judgment and decree is given by a court, directing the other party to take action or desist from acting in terms of the decree.",
+
+    "Decree": "The formal order of a court that conclusively resolves the issues in a case and determines the rights of the parties.",
+
+    #"Defendant": "The party against whom a civil suit is filed",
+
+    "Deferred Sentence": "Postponement or delay of a sentence to a future date.",
+
+    "Delay": "As per the 245th Law Commission report: A case that has been in the court or judicial system for longer than the normal time that it should take for a case of that type to be disposed of.",
+
+    "Disposal": "The resolution of a case. This could either be the dismissal or a charge, or a final judgement. Court records often specify the nature of resolution.",
+
+    "Dispute": "A conflict of claims or rights that has given rise to the subject of litigation.",
+
+    "District": "An administrative unit within a state. Each district is headed by an official called the District Magistrate/Deputy Commissioner/Collector.",
+
+    "Evidence": "Evidence are things or information brought before the court to prove a fact. Evidence can be documents, computers, witness testimony, videos, audio recordings, weapons etc. The Indian Evidence Act governs the admissibility of evidence and burden of proof.",
+
+    "Ex Parte": "A hearing or trial conducted in the absence of one party. Check the wiki page",
+
+    "Examination in chief": "Examination-in-chief is the examination of a witness by the lawyer of the side who called that witness. It is usually followed by a cross-examination of the witness by the lawyers of the opposite side. Check the wiki page",
+
+    "Exculpatory Evidence": "Evidence that establishes the innocence of the defendant.",
+
+    "Executing court": "The court which executes the decree. It is generally the court which passed the decree.",
+
+    "Execution": "In a civil case execution is the process of enforcement of the decree to enable the decree-holder to claim the benefits of the decree. In a criminal case execution is the implementation of death sentence given by a court. Check the wiki page",
+
+    "Executive": "The executive is the part of the government that has sole authority and responsibility for the effecting and enforcing laws.",
+
+    #"Exhibit": "A document, electronic device or other item introduced in evidence during a trial or hearing.",
+
+    "Fine": "A fine is a  sum of money imposed on a convicted person by a court as a punishment.",
+
+    "FIR": "First Information Report (FIR) is a written document prepared by the police when they first receive information about the commission of an offence. Check the wiki page",
+
+    "Forgery": "The act of making false documents or false electronic records to cause damage or injury to the public or any person.",
+
+    "Fundamental Rights": "A charter of rights contained in the Constitution of India which can be enforced against the state.",
+
+    "Garnishee": "Garnishee is a debtor of judgment debtor whose debt is attached by the court.",
+
+    "Gram Nyayalayas": "Village courts instituted by the Gram Nyayalayas Act, 2008 for speedy and easy access to justice system in the rural areas of India. Check the wiki page",
+
+    "Habeas Corpus": "This is a writ that can be filed before the High Court or Supreme Court when a person is in unlawful detention. A writ of habeas corpus is used to bring a prisoner or other detainee before the court to determine if their imprisonment or detention is lawful.",
+
+    "Hand Summons/dasti summons": "Giving summons “by hand” by the plaintiff or his lawyer personally to the defendant.",
+
+    "Hearsay": "A testimony or evidence by an individual not from his personal knowledge but what he heard another person saying.  Hearsay evidence is usually not admissible in a trial.",
+
+    "Homicide": "The act of killing a human being.",
+
+    "Implied Bar": "A claim/right barred by necessary implication of statute, contract, or general principles of law.",
+
+    "Indigent Person": "An individual who does not possess the financial means to afford the court fees to be paid with the plaint in a particular suit.",
+
+    "Inquiry": "It is every inquiry, other than a trial, conducted by a Magistrate.",   
+
+    "Indian Penal Code": "Main criminal code of India that covers all aspects of substantive criminal law in India.",
+
+    "Interpretation": "The process of determining the intended meaning of a written document, such as the constitution, or a statute.",
+
+    "Interlocutory Application": "An application filed by either party during the pendency of a civil proceeding seeking relief of an interim/temporary nature. Check the wiki page",
+
+    "Interrogation": "The process of law enforcement agencies questioning a person accused of a crime. The accused person is not obligated to answer the questions asked by the law enforcement agency, and the fact that they have remained silent generally cannot be used by the prosecution to help prove guilt. It is illegal for the police to use violence in the process of interrogation.",
+
+    "Investigation": "Investigation includes all the proceedings required for the collection of evidence to ascertain whether a crime has been committed, who has committed the crime and to provide evidence to prove the guilt of the accused person. Investigation usually involves collecting physical evidence like fingerprints, computers, weapons etc and information from people like witnesses, informants and suspects. It is conducted by the law enforcement agency or by any person other than a magistrate, who has been authorized by the magistrate on this behalf.",
+
+    "Issues": "The question of fact or law that is in dispute.",
+
+    "Judge": "A public official authorised to hear and decide cases in a court of law. Check the wiki page",
+
+    "Judgment debtor": "The party against whom a court has given a judgement and who is liable to pay/perform in terms of the decree passed by the court in favour of the decree holder.",
+
+    #"Judgment": "The final decision in a case determining the rights of parties and the reasoning for this decision given by a court. Check the wiki page",
+
+    "Judicial Custody": "Judicial custody means the detention of an accused person in the custody of the concerned Magistrate. The accused person is lodged in a prison. Magistrates usually order judicial custody after the accused person has been in police custody for fourteen days or less.",
+
+    "Judiciary": "The judiciary is one of the three main organs of the government (also known as the judicial system or court system). It is the system of courts that interprets and applies the law in the name of the state.",
+
+    "Jurisdiction": "Jurisdiction refers to the legal authority or power of a court to hear and decide a case. It is the power to interpret and apply the law, and to determine the facts of a case and to deliver a binding judgment and enforce it. Jurisdiction can be based on a number of factors, including the location of the parties or the subject matter of the dispute, and may be limited by geography, subject matter, and other legal principles. Check the wiki page",
+
+    "Juvenile": "A juvenile is a person who is under the age of 16 years in the case of boys, or the age of 18 years in the case of girls. A juvenile has to serve their sentence until the age of twenty-one years in a remand home. A person between the ages of sixteen and eighteen, accused of committing ‘heinous offences’ may be tried as an adult",
+
+    "Lawyer": "A person who practices law.",
+
+    "Legal representative": "The legal heir(s) of a deceased person, or the person(s) who represents the deceased person after his death.",
+
+    "Legislative Assembly": "The name given in some countries to either a legislature, or to one of its branch. In India, legislative assembly usually refers to the legislature at the state-level.",
+
+    "Legislature": "A branch of the government that has the power to make laws in a country.",
+
+    #"Limitation": "The maximum time from the date of the offence that parties have to initiate legal proceedings. Limitation does not apply to criminal cases involving offences punishable with imprisonment of more than 3 years.",
+
+    "Litigant": "A party to a lawsuit in a court.",
+
+    "Lok Adalats": "A system of alternative dispute resolution developed in India. It roughly means people’s court and it is a forum where disputes/cases pending in the court of law or at pre-litigation stage are settled/ compromised amicably. Lok Adalats have been given statutory status under the Legal Services Authorities Act, 1987. Check the wiki page",
+
+    "Malice": "Intention to commit a criminal offence.",
+
+    "Mandatory minimum sentence": "It is a minimum sentence prescribed for certain serious offences irrespective of the circumstances of the crime. It reduces a judge’s discretion since they cannot reduce the sentence below the minimum.  E.g. Section 376-DB of IPC provides for a mandatory minimum punishment of life imprisonment without remission for persons convicted for rape/gangrape of a girl under the age of 12 years.",
+
+    "Mediation": "It is a form of alternative dispute resolution where parties choose a third party who is neutral to help them to resolve their dispute through compromise and discussion.",
+
+    "Mens Rea": "It means guilty mind in Latin. Mens rea refers to criminal intent required in order to convict a person, and it is an essential element that has to be proved in criminal proceedings.",
+
+    "Merits": "The substantive grounds of dispute between the parties.",
+
+    "Mitigating Circumstances": "Mitigating circumstances are facts that appear to mitigate the seriousness of a crime by rendering the actions of the accused less severe and influences the sentence given by the judge. E.g. the age of the accused person and their previous criminal record are considered mitigating cricumstances.",
+
+    "Modus Operandi": "The mode or way in which a person commits a crime.",
+
+    "Murder": "An act committed with an intention to cause death. The act is done with the intention of causing such bodily injury which the offender has knowledge that it would result in death.",
+
+    "Notice": "The legal notification by which a party or person is made aware of a legal process affecting their rights, obligations, or duties.",
+
+    "Objection": "An argument or contention raised in response to the actions of the other party in a court or tribunal.",
+
+    #"Order": "A direction issued by a court against one of more parties to a case. Orders can be given during the proceedings or after the case has been decided. Check the wiki page",
+
+    "Original Jurisdiction": "A court’s power to hear a case in the first instance. It is the first court that hears a matter. This depends on the nature of the case and the value of the dispute in the case.",
+
+    "Pecuniary Jurisdiction": "The pecuniary jurisdiction of a court refers to the monetary value of cases that can be adjudicated by it.",
+
+    "Pendency": "As per the 245th Law Commission report pendency refers to all cases instituted but not disposed of, regardless of when the case was instituted. Check the wiki page",  
+
+    "Personal Bond": "A personal bond is an agreement by the accused person as a condition for release on bail that they will appear for court hearings and will comply with the conditions placed on their release.",
+
+    "Petition": "A formal written request presented to a court of law.",
+
+    #"Petitioner": "The party who presents a petition in court of law. Check the wiki page",
+
+    #"Plaintiff": "The party who initiates a lawsuit (also known as an action) before a court of law.",
+
+    "Plea Bargain": "Plea bargaining is a negotiation between the accused and the prosecution where the accused agrees to plead guilty in exchange for certain concessions by the prosecution. It is a bargain where an accused person pleads guilty to a lesser charge and the prosecutors in return drop more serious charges. Check the wiki page",
+
+    "Plea": "In a court of law, a person’s plea is the answer that they give when they have been charged with a crime, saying whether or not they are guilty of that crime. It is usually taken at the initial stage of the trial.",
+
+    "Pleadings": "Written presentation by litigants in a case, setting forth the facts upon which they are claiming legal relief or challenging the claims of the opposite party.",
+
+    "Police Custody": "Police custody means that the physical custody of the accused person is with the police. The accused person is lodged in a lock-up of a police station. Police custody is ordered for a maximum of fourteen days after which the accused person has to be kept in judicial custody. Check the wiki page",
+
+    "Prayer": "A prayer for relief is a portion of a complaint in which the plaintiff describes the remedies that they seek from the court. Check the wiki page",
+
+    "Precedent": "A precedent or authority is a principle or rule established in a previous legal case that is either binding on a court or other tribunal when deciding subsequent cases with similar issues or facts.",
+
+    "Pre-emption": "It is the preferential right to purchase or enjoy property before another.",
+
+    "Prima facie": "It means at first sight in Latin. It is a way to evaluate a case at an initial stage to see if there is enough material for it to go to trial.",
+
+    "Probation": "The release of a convict from prison subject to good behaviour and any other conditions. A violation of probation conditions can lead to its revocation and to imprisonment. Check the wiki page",
+
+    "Procedural": "Procedural law comprises the rules by which a court prescribes the steps for having a right or duty that is judicially enforced, and determines what happens in civil lawsuit, criminal or administrative proceedings.",
+
+    "Proceedings": "It is the form and manner in which a court of law or judicial officer conducts business.",
+
+    "Public Prosecutor": "A lawyer representing the state in a criminal trial. Since a criminal offence is regarded as a public wrong, which has been committed not only against the victim, but also against society as a whole, the case is prosecuted by the state. Check the wiki page",
+
+    "Rape": "Sexual intercourse with a woman against her will, without her consent, by coercion, misrepresentation or fraud or at a time when she has been intoxicated or duped, or is of unsound mental health and in any case if she is under the age of 18 years.",
+
+    "Record": "It is the record maintained by the court for each case, including pleadings, documents and evidence." ,
+
+    "Recusal": "It is an action of a judge to withdraw himself from a case in which his bias to one of the parties may be called into question. Check the wiki page",   
+
+    "Registry": "An office of the court which receives and maintains documents for filing with the court.",
+
+    #"Rejoinder": "A pleading in which the plaintiff explains or rebuts the additional facts brought up by the defendant in their written statement. Check the wiki page",
+
+    "Remand": "Police custody of an accused person ordered by a magistrate when the investigation is not completed within 24 hours of arrest.",
+
+    #"Remand": "To send back the case to the lower court. Check the wiki page",
+
+    "Representative suit": "It is a suit that is filed by one person on behalf of themselves and on behalf of others who have the same interest in the suit.",
+
+    #"Respondent": "A party against whom a petition is filed. This term is generally used in appeals. A respondent can be the plaintiff or defendant from lower court. Check the wiki page",
+
+    "Review": "A proceeding in a court to review its own judgement in case of any error or mistake made with regard to the decision rendered, to rectify the same. Check the wiki page",
+
+    "Right": "A legally protected interest.",
+
+    "Robbery": "Theft is a robbery when in order to commit theft, the offender voluntarily causes or attempts to cause to any person death, subject him to wrongful restraint, cause hurt or induce fear of instant death, instant wrongful restraint or cause instant hurt.",
+
+    "Search Warrant": "An order signed by a judge for probable cause that directs owners of private property to allow the police to enter and search for items named in the warrant.",
+
+    "Separation of Powers": "A constitutional government with three separate branches: the legislative, executive, and judicial.",
+
+    "Set off": "It is a kind of cross-claim for the recovery of money which the defendant raises against the claim of the plaintiff subtract dues owed to the defendant by the plaintiff from the dues claimed by the plaintiff.",
+
+    "Settlement": "It is an agreement reached by the parties in a case to resolve their dispute",
+
+    "Special Courts": "Bodies within the judicial branch of government that generally address only one area of law or have specifically defined powers. Check the wiki page",
+
+    "Stage of the Case": "The steps in process through which a case passes.",
+
+    "Statute": "Any law passed by a legislative body at the municipal, state, or central level.",
+
+    "Substantive": "A statutory, or written law, that creates and defines rights and duties and powers of parties, such as crimes and punishments in criminal law, civil rights and responsibilities in civil law.",
+
+    "Suit": "A civil action brought by a party/parties against another in a court of law. Check the wiki page", 
+
+    "Summons": "Summon is a document that commands a person to whom it is served to appear before the court. and to answer the complaint made against him",
+
+    "Surety": "A surety is a person that guarantees the accused person will attend their court hearing after being granted bail. The surety is required to deposit a security which is forfeited if the accused person fails to appear in court.",
+
+    "Testimony": "It is evidence presented under oath by a witness in court",   
+
+    "Theft": "Theft means the dishonest removal of moveable property out of the possession of any person without their consent",
+
+    "Tort": "A civil wrong in which an injury is caused by one person to another, and which may be intentional or unintentional. Prominent examples of torts include negligent injury, battery, deceit, and defamation.",
+
+    "Transcript": "It is a record of official proceedings of a hearing.",
+
+    "Trial": "It is a process to determine the guilt or innocence of the accused person. It is a structured process where the facts of a case are presented to the judge, and they decide if the accused person is guilty or not.",
+
+    "Tribunals": "Tribunals are dispute resolution institutions established for discharging judicial or quasi-judicial duties related to certain areas of law. Check the wiki page"  ,
+
+    "Vakalatnama": "A document by which an advocate is empowered to appear or plead before any court, tribunal or other authority on behalf of a party. Check the wiki page",
+
+    "Waiver": "It is a voluntary renunciation of a person’s rights, claims or privileges.",
+
+    #"Written statement": "It is a statement of defence filed by the defendant countering the allegations of the plaintiff.",
+
+    "Writs": "A writ is a formal written order issued by a high court or the Supreme Court asking the state to refrain from or perform a specific act. Check the wiki page",
+
+    #The following are the five types of writs.
+
+    #"Mandamus": "An order that is issued by a court of superior jurisdiction to ask a lower court, tribunal, commission, or individual, to perform or refrain from performing an action that is required by law.",
+
+    "Habeas Corpus": "A court order that commands an individual or a government official who has restrained another to produce the prisoner at a designated  time and place so that the court can determine the legality of custody.",
+
+    "Prohibition": "An extraordinary writ issued by a higher court commanding an inferior court or quasi-judicial body to keep within its jurisdiction.",
+
+   # "Quo Warranto": "A writ issued with a view to restrain a person from holding a civil office to which he/she is not entitled",
+
+    "Certiorari": "A writ issued by the Supreme Court or High Court to quash the order already passed by an inferior court, tribunal or quasi-judicial body."
+
 }
 
 # --- Sidebar Glossary Panel for Legal Terms ---
