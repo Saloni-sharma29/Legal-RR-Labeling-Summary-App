@@ -1989,12 +1989,168 @@ HF_TOKEN = "hf_xxxxxxxxxxxxxxxxxxxxx"
 def extract_text_from_pdf_filelike(filelike):
     try:
         reader = PyPDF2.PdfReader(filelike)
-        text = []
+        pages = []
         for page in reader.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text.append(page_text)
-        return "\n".join(text)
+            page_text = page.extract_text() or ""
+            pages.append(page_text)
+
+        # If only one page or empty, short-circuit to original behavior
+        if len(pages) <= 1:
+            return "\n".join(pages)
+
+        # Heuristic: detect repeated top/bottom lines across pages (headers/footers)
+        from collections import Counter
+        from difflib import SequenceMatcher
+
+        def _normalize_for_match(l: str) -> str:
+            s = l.strip()
+            # remove explicit page number tokens
+            s = re.sub(r"Page\s*\d+(?:\s*of\s*\d+)?", "", s, flags=re.I)
+            # remove common date forms like 'on 8 August, 2023' and '8 August 2023'
+            s = re.sub(r"\bon\s+\d{1,2}\s+[A-Za-z]+,?\s+\d{4}\b", "", s, flags=re.I)
+            s = re.sub(r"\b\d{1,2}\s+[A-Za-z]+,?\s+\d{4}\b", "", s, flags=re.I)
+            # strip punctuation for fuzzy matching
+            s = re.sub(r"[^\w\s]", " ", s)
+            s = re.sub(r"\s+", " ", s)
+            return s.strip().lower()
+
+        pages_lines = [[ln for ln in p.splitlines() if ln.strip()] for p in pages]
+        top_n = 3
+        bottom_n = 3
+
+        top_candidates = []
+        bottom_candidates = []
+        for lines in pages_lines:
+            if not lines:
+                continue
+            for i in range(min(top_n, len(lines))):
+                top_candidates.append(lines[i].strip())
+            for i in range(1, min(bottom_n, len(lines)) + 1):
+                bottom_candidates.append(lines[-i].strip())
+
+        def cluster_similar(strings, min_count, ratio=0.75):
+            groups = []
+            for s in strings:
+                norm_s = _normalize_for_match(s)
+                if not norm_s:
+                    continue
+                placed = False
+                for g in groups:
+                    rep = g[0]
+                    if SequenceMatcher(None, _normalize_for_match(rep), norm_s).ratio() >= ratio:
+                        g.append(s)
+                        placed = True
+                        break
+                if not placed:
+                    groups.append([s])
+            reps = []
+            for g in groups:
+                if len(g) >= min_count:
+                    rep = Counter(g).most_common(1)[0][0]
+                    reps.append(rep)
+            return reps
+
+        min_pages = max(2, int(len(pages_lines) * 0.5))
+        header_reps = cluster_similar(top_candidates, min_pages, ratio=0.72)
+        footer_reps = cluster_similar(bottom_candidates, min_pages, ratio=0.72)
+
+        cleaned_pages = []
+        page_num_re = re.compile(r"^\s*Page\s*\d+(?:\s*of\s*\d+)?\s*$", re.I)
+        for lines in pages_lines:
+            if not lines:
+                continue
+            # Remove leading header-like lines (fuzzy)
+            start = 0
+            while start < len(lines):
+                ln = lines[start]
+                norm_ln = _normalize_for_match(ln)
+                if not norm_ln:
+                    start += 1
+                    continue
+                match_found = False
+                for rep in header_reps:
+                    if SequenceMatcher(None, _normalize_for_match(rep), norm_ln).ratio() >= 0.72:
+                        match_found = True
+                        break
+                if match_found:
+                    start += 1
+                    continue
+                break
+
+            # Remove trailing footer-like lines (fuzzy)
+            end = len(lines)
+            while end - 1 >= start:
+                ln = lines[end - 1]
+                norm_ln = _normalize_for_match(ln)
+                if not norm_ln:
+                    end -= 1
+                    continue
+                match_found = False
+                for rep in footer_reps:
+                    if SequenceMatcher(None, _normalize_for_match(rep), norm_ln).ratio() >= 0.72:
+                        match_found = True
+                        break
+                if match_found:
+                    end -= 1
+                    continue
+                break
+
+            candidate = lines[start:end]
+            # Also remove explicit page-number-only lines and very short noise
+            filtered = []
+            for ln in candidate:
+                if page_num_re.match(ln):
+                    continue
+                if len(ln.strip()) <= 2:
+                    continue
+                filtered.append(ln)
+
+            if filtered:
+                cleaned_pages.append("\n".join(filtered))
+
+        # Final post-processing: aggressively remove running headers
+        all_text = "\n".join(cleaned_pages)
+        lines = all_text.splitlines()
+        
+        # Pattern 1: Remove lines matching "X vs Y on <date>"
+        header_date_re = re.compile(
+            r"(.+?)\s+(?:vs|v\.?|versus)\s+(.+?)\s+on\s+\d{1,2}\s+[A-Za-z]+,?\s+\d{4}",
+            re.I
+        )
+        # Pattern 2: Also catch partial headers that start with case name patterns
+        partial_header_re = re.compile(
+            r"^\s*[A-Z][A-Za-z\.\s]+(?:vs|v\.?|versus)[\s\.]{0,5}$|^\s*[A-Z][A-Za-z\.\s]+vs[\s\.]*$|^\s*(?:on|April|May|June|July|August|September|October|November|December|January|February|March),?\s+\d{4}\s*$",
+            re.I
+        )
+        # Pattern 3: Remove legal citation lines like "2023 INSC 682" or "2019 SC 249"
+        citation_re = re.compile(r"^\s*\d{4}\s+[INSC]+\s+\d+\s*$")
+        
+        # Remove header lines
+        filtered_lines = []
+        prev_line = ""
+        for ln in lines:
+            stripped = ln.strip()
+            
+            # Skip if matches full header pattern with date
+            if header_date_re.search(ln):
+                continue
+            
+            # Skip if matches partial header pattern (incomplete headers across lines)
+            if partial_header_re.match(ln):
+                continue
+            
+            # Skip if matches legal citation pattern (e.g. "2023 INSC 682")
+            if citation_re.match(ln):
+                continue
+            
+            # Skip if it's a duplicate of the previous line (catches repeated headers)
+            if stripped and stripped == prev_line:
+                continue
+            
+            filtered_lines.append(ln)
+            prev_line = stripped
+        
+        return "\n".join(filtered_lines)
     except Exception as e:
         st.error(f"Failed to extract PDF text: {e}")
         return ""
